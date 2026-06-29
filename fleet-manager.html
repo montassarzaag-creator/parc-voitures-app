@@ -1179,14 +1179,14 @@ function renderSettingsSocietes() {
   const el = document.getElementById('societes-list');
   if (!el) return;
   if (allSocietes.length === 0) { el.innerHTML = '<div style="font-size:12px;color:var(--text2)">Aucune société enregistrée.</div>'; return; }
-  el.innerHTML = `<table><thead><tr><th>Société</th><th>Code</th><th>Responsable</th><th>Actions</th></tr></thead><tbody>${allSocietes.map(s=>`<tr>
-    <td>${s.nom}</td>
+  el.innerHTML = `<table style="table-layout:fixed;width:100%"><thead><tr><th style="width:45%">Société</th><th style="width:12%">Code</th><th style="width:28%">Responsable</th><th style="width:15%">Actions</th></tr></thead><tbody>${allSocietes.map(s=>`<tr>
+    <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.nom}</td>
     <td style="font-family:monospace">${s.code}</td>
     <td>${s.responsable||'—'}</td>
-    <td style="display:flex;gap:4px">
-      <button class="btn sm" onclick="editSociete('${s.id}')">✏️</button>
-      <button class="btn sm danger" onclick="deleteSociete('${s.id}','${s.nom}')">🗑</button>
-    </td>
+    <td><div style="display:flex;gap:4px">
+      <button class="btn sm" onclick="editSociete('${s.id}')" title="Modifier">✏️</button>
+      <button class="btn sm danger" onclick="deleteSociete('${s.id}','${s.nom}')" title="Supprimer">🗑</button>
+    </div></td>
   </tr>`).join('')}</tbody></table>`;
 }
 

@@ -415,7 +415,8 @@ tr:hover td{background:var(--surface)}
 <!-- Société -->
 <div class="modal-bg" id="modal-add-societe">
   <div class="modal" style="max-width:400px">
-    <div class="modal-hdr"><h3>Ajouter une société</h3><button class="close-btn" onclick="closeModal('modal-add-societe')">×</button></div>
+    <div class="modal-hdr"><h3 id="soc-modal-title">Ajouter une société</h3><button class="close-btn" onclick="closeModal('modal-add-societe')">×</button></div>
+    <input type="hidden" id="soc-edit-id">
     <div class="form-group"><label>Nom de la société *</label><input type="text" id="soc-nom" placeholder="SARL Transport..."></div>
     <div class="form-group"><label>Code société *</label><input type="text" id="soc-code" placeholder="TCE" style="text-transform:uppercase"></div>
     <div class="form-group"><label>Responsable</label><input type="text" id="soc-resp" placeholder="M. Dupont"></div>
@@ -423,6 +424,33 @@ tr:hover td{background:var(--surface)}
     <div class="form-actions">
       <button class="btn" onclick="closeModal('modal-add-societe')">Annuler</button>
       <button class="btn primary" onclick="saveSociete()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modifier entretien -->
+<div class="modal-bg" id="modal-edit-maint">
+  <div class="modal">
+    <div class="modal-hdr"><h3>Modifier l'entretien</h3><button class="close-btn" onclick="closeModal('modal-edit-maint')">×</button></div>
+    <input type="hidden" id="maint-edit-id">
+    <div class="form-grid">
+      <div class="form-group"><label>Type d'entretien</label>
+        <select id="maint-edit-type">
+          <option>Vidange moteur</option><option>Remplacement filtres</option>
+          <option>Révision générale</option><option>Pneumatiques</option>
+          <option>Courroie de distribution</option><option>Freins</option><option>Autre</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Date</label><input type="date" id="maint-edit-date"></div>
+      <div class="form-group"><label>Kilométrage</label><input type="number" id="maint-edit-km"></div>
+      <div class="form-group"><label>Prestataire</label><input type="text" id="maint-edit-presta"></div>
+      <div class="form-group"><label>Coût (FCFA)</label><input type="number" id="maint-edit-cout"></div>
+      <div class="form-group full"><label>Pièces remplacées</label><textarea id="maint-edit-pieces" style="width:100%;min-height:60px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px"></textarea></div>
+      <div class="form-group full"><label>Observations</label><textarea id="maint-edit-obs" style="width:100%;min-height:60px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn" onclick="closeModal('modal-edit-maint')">Annuler</button>
+      <button class="btn primary" onclick="updateMaint()">Enregistrer</button>
     </div>
   </div>
 </div>
@@ -904,11 +932,15 @@ function renderMaint() {
     document.getElementById('maint-table-wrap').innerHTML = '<div class="empty"><div class="empty-icon">🔧</div>Aucun entretien enregistré.</div>'; return;
   }
   document.getElementById('maint-table-wrap').innerHTML = `
-    <table><thead><tr><th>Véhicule</th><th>Type</th><th>Date</th><th>Kilométrage</th><th>Prestataire</th><th>Coût</th></tr></thead>
+    <table><thead><tr><th>Véhicule</th><th>Type</th><th>Date</th><th>Kilométrage</th><th>Prestataire</th><th>Coût</th><th>Actions</th></tr></thead>
     <tbody>${maints.map(m => `<tr>
       <td>${m.vehicule||'—'}</td><td>${m.type||'—'}</td><td>${m.date||'—'}</td>
       <td>${fmt(m.km)} km</td><td>${m.presta||'—'}</td>
       <td>${m.cout?fmt(m.cout)+' FCFA':'—'}</td>
+      <td style="display:flex;gap:4px">
+        ${isAdminOrSoc()?`<button class="btn sm" onclick="openEditMaint('${m.id}')">✏️</button>`:''}
+        ${isAdmin()?`<button class="btn sm danger" onclick="deleteMaint('${m.id}')">🗑</button>`:''}
+      </td>
     </tr>`).join('')}</tbody></table>`;
 }
 window.filterMaint = renderMaint;
@@ -939,6 +971,49 @@ window.saveMaint = async function() {
     closeModal('modal-add-maint');
     toast('✅ Entretien enregistré');
   } catch(e) { toast('❌ Erreur : '+e.message); }
+};
+
+window.openEditMaint = function(id) {
+  const m = allMaint.find(x=>x.id===id);
+  if (!m) return;
+  document.getElementById('maint-edit-id').value = id;
+  document.getElementById('maint-edit-type').value = m.type||'';
+  document.getElementById('maint-edit-date').value = m.date||'';
+  document.getElementById('maint-edit-km').value = m.km||'';
+  document.getElementById('maint-edit-presta').value = m.presta||'';
+  document.getElementById('maint-edit-cout').value = m.cout||'';
+  document.getElementById('maint-edit-pieces').value = m.pieces||'';
+  document.getElementById('maint-edit-obs').value = m.obs||'';
+  openModal('modal-edit-maint');
+};
+
+window.updateMaint = async function() {
+  const id = document.getElementById('maint-edit-id').value;
+  const data = {
+    type: document.getElementById('maint-edit-type').value,
+    date: document.getElementById('maint-edit-date').value,
+    km: parseInt(document.getElementById('maint-edit-km').value)||0,
+    presta: document.getElementById('maint-edit-presta').value.trim(),
+    cout: parseInt(document.getElementById('maint-edit-cout').value)||0,
+    pieces: document.getElementById('maint-edit-pieces').value.trim(),
+    obs: document.getElementById('maint-edit-obs').value.trim(),
+  };
+  try {
+    await updateDoc(doc(db,'entretiens',id), data);
+    await addDoc(collection(db,'historique'), { type:'modif_entretien', auteur:currentUserData.prenom+' '+currentUserData.nom, detail:'Modification entretien : '+data.type, timestamp:serverTimestamp() });
+    closeModal('modal-edit-maint');
+    toast('✅ Entretien modifié');
+  } catch(e) { toast('❌ '+e.message); }
+};
+
+window.deleteMaint = async function(id) {
+  const m = allMaint.find(x=>x.id===id);
+  if (!confirm(`Supprimer l'entretien "${m?.type||''}" du ${m?.date||''} ?`)) return;
+  try {
+    await deleteDoc(doc(db,'entretiens',id));
+    await addDoc(collection(db,'historique'), { type:'suppression_entretien', auteur:currentUserData.prenom+' '+currentUserData.nom, detail:'Suppression entretien : '+(m?.type||id), timestamp:serverTimestamp() });
+    toast('✅ Entretien supprimé');
+  } catch(e) { toast('❌ '+e.message); }
 };
 
 // ---- DOCUMENTS ----
@@ -1040,14 +1115,46 @@ window.deleteUser = async function(id) {
 };
 
 // ---- SOCIETES ----
+window.editSociete = function(id) {
+  const s = allSocietes.find(x=>x.id===id);
+  if (!s) return;
+  document.getElementById('soc-modal-title').textContent = 'Modifier la société';
+  document.getElementById('soc-edit-id').value = id;
+  document.getElementById('soc-nom').value = s.nom||'';
+  document.getElementById('soc-code').value = s.code||'';
+  document.getElementById('soc-resp').value = s.responsable||'';
+  document.getElementById('soc-email').value = s.email||'';
+  openModal('modal-add-societe');
+};
+
+window.deleteSociete = async function(id, nom) {
+  const vehCount = allVehicles.filter(v=>v.societeId===id).length;
+  if (vehCount > 0) { toast(`❌ Impossible : ${vehCount} véhicule(s) rattaché(s) à cette société`); return; }
+  if (!confirm(`Supprimer la société "${nom}" ?`)) return;
+  try {
+    await deleteDoc(doc(db,'societes',id));
+    await addDoc(collection(db,'historique'), { type:'suppression_societe', auteur:currentUserData.prenom+' '+currentUserData.nom, detail:'Suppression société : '+nom, timestamp:serverTimestamp() });
+    toast('✅ Société supprimée');
+  } catch(e) { toast('❌ '+e.message); }
+};
+
 window.saveSociete = async function() {
+  const id = document.getElementById('soc-edit-id').value;
   const nom = document.getElementById('soc-nom').value.trim();
   const code = document.getElementById('soc-code').value.trim().toUpperCase();
   if (!nom||!code) { toast('❌ Nom et code requis'); return; }
+  const data = { nom, code, responsable:document.getElementById('soc-resp').value.trim(), email:document.getElementById('soc-email').value.trim() };
   try {
-    await addDoc(collection(db,'societes'), { nom, code, responsable:document.getElementById('soc-resp').value.trim(), email:document.getElementById('soc-email').value.trim(), createdAt:serverTimestamp() });
+    if (id) {
+      await updateDoc(doc(db,'societes',id), data);
+      toast('✅ Société modifiée');
+    } else {
+      data.createdAt = serverTimestamp();
+      await addDoc(collection(db,'societes'), data);
+      await addDoc(collection(db,'historique'), { type:'ajout_societe', auteur:currentUserData.prenom+' '+currentUserData.nom, detail:'Ajout société : '+nom, timestamp:serverTimestamp() });
+      toast('✅ Société ajoutée');
+    }
     closeModal('modal-add-societe');
-    toast('✅ Société ajoutée');
   } catch(e) { toast('❌ '+e.message); }
 };
 
@@ -1072,7 +1179,15 @@ function renderSettingsSocietes() {
   const el = document.getElementById('societes-list');
   if (!el) return;
   if (allSocietes.length === 0) { el.innerHTML = '<div style="font-size:12px;color:var(--text2)">Aucune société enregistrée.</div>'; return; }
-  el.innerHTML = `<table><thead><tr><th>Société</th><th>Code</th><th>Responsable</th></tr></thead><tbody>${allSocietes.map(s=>`<tr><td>${s.nom}</td><td style="font-family:monospace">${s.code}</td><td>${s.responsable||'—'}</td></tr>`).join('')}</tbody></table>`;
+  el.innerHTML = `<table><thead><tr><th>Société</th><th>Code</th><th>Responsable</th><th>Actions</th></tr></thead><tbody>${allSocietes.map(s=>`<tr>
+    <td>${s.nom}</td>
+    <td style="font-family:monospace">${s.code}</td>
+    <td>${s.responsable||'—'}</td>
+    <td style="display:flex;gap:4px">
+      <button class="btn sm" onclick="editSociete('${s.id}')">✏️</button>
+      <button class="btn sm danger" onclick="deleteSociete('${s.id}','${s.nom}')">🗑</button>
+    </td>
+  </tr>`).join('')}</tbody></table>`;
 }
 
 // ---- SETTINGS ----
@@ -1120,6 +1235,11 @@ window.openModal = function(id) {
   if (id==='modal-add-maint') {
     const mv = document.getElementById('maint-veh');
     if (mv) mv.innerHTML = allVehicles.map(v=>`<option value="${v.id}">${v.marque||''} ${v.modele||''} — ${v.immat||''}</option>`).join('');
+  }
+  if (id==='modal-add-societe') {
+    document.getElementById('soc-modal-title').textContent = 'Ajouter une société';
+    document.getElementById('soc-edit-id').value = '';
+    ['soc-nom','soc-code','soc-resp','soc-email'].forEach(f=>{ const el=document.getElementById(f); if(el) el.value=''; });
   }
   if (id==='modal-add-veh') {
     document.getElementById('veh-modal-title').textContent = 'Ajouter un véhicule';

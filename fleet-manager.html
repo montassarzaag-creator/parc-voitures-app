@@ -280,6 +280,7 @@ tr:hover td{background:var(--surface)}
     <div id="alert-banner"></div>
     <div class="header">
       <div class="page-title" id="page-title">Tableau de bord</div>
+      <span id="debug-badge" style="font-size:10px;background:#fee;color:#a00;padding:3px 8px;border-radius:6px;font-family:monospace"></span>
       <select class="company-filter" id="company-filter" onchange="onCompanyFilter()">
         <option value="">Toutes les sociétés</option>
       </select>
@@ -713,6 +714,8 @@ onAuthStateChanged(auth, async user => {
     if (mUserName) mUserName.textContent = (currentUserData.prenom+' '+currentUserData.nom).trim() || user.email;
     applyRoleUI();
     startListeners();
+    const dbg = document.getElementById('debug-badge');
+    if (dbg) dbg.textContent = 'DEBUG role="'+currentUserData.role+'" nom="'+currentUserData.prenom+' '+currentUserData.nom+'"';
   } else {
     currentUser = null; currentUserData = null;
     document.getElementById('auth-screen').style.display = 'flex';

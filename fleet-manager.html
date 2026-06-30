@@ -889,6 +889,7 @@ window.saveVehicle = async function() {
 window.editVehicle = function(id) {
   const v = allVehicles.find(x=>x.id===id);
   if (!v) return;
+  openModal('modal-add-veh', true);
   document.getElementById('veh-modal-title').textContent = 'Modifier le véhicule';
   document.getElementById('veh-edit-id').value = id;
   document.getElementById('veh-societe').value = v.societeId||'';
@@ -904,7 +905,6 @@ window.editVehicle = function(id) {
   document.getElementById('veh-date-circ').value = v.dateCirc||'';
   document.getElementById('veh-ins-exp').value = v.insExp||'';
   document.getElementById('veh-vt-exp').value = v.vtExp||'';
-  openModal('modal-add-veh');
 };
 
 window.deleteVehicle = async function(id) {
@@ -1118,13 +1118,13 @@ window.deleteUser = async function(id) {
 window.editSociete = function(id) {
   const s = allSocietes.find(x=>x.id===id);
   if (!s) return;
+  openModal('modal-add-societe', true);
   document.getElementById('soc-modal-title').textContent = 'Modifier la société';
   document.getElementById('soc-edit-id').value = id;
   document.getElementById('soc-nom').value = s.nom||'';
   document.getElementById('soc-code').value = s.code||'';
   document.getElementById('soc-resp').value = s.responsable||'';
   document.getElementById('soc-email').value = s.email||'';
-  openModal('modal-add-societe');
 };
 
 window.deleteSociete = async function(id, nom) {
@@ -1229,8 +1229,9 @@ window.exportCSV = function() {
 };
 
 // ---- MODALS ----
-window.openModal = function(id) {
+window.openModal = function(id, skipReset) {
   document.getElementById(id).classList.add('open');
+  if (skipReset) return;
   // Reset maint-veh quand on ouvre modal entretien
   if (id==='modal-add-maint') {
     const mv = document.getElementById('maint-veh');

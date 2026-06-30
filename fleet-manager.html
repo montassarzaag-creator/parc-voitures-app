@@ -136,11 +136,86 @@ tr:hover td{background:var(--surface)}
 /* KM INPUT */
 .km-group{display:flex;gap:8px;align-items:flex-end;padding:12px;background:var(--surface);border-radius:8px;margin-top:10px}
 .km-group input{flex:1;font-size:16px;font-weight:500;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:#fff}
-/* RESPONSIVE */
+
+/* ================= MOBILE VIEW (≤768px) ================= */
+#mobile-view{display:none}
 @media(max-width:768px){
-  .sidebar{width:60px}
-  .logo-text,.logo-sub,.nav-section,.user-name,.user-role{display:none}
-  .nav-item span{display:none}
+  #app.visible{display:none !important}
+  #mobile-view{display:flex;flex-direction:column;height:100vh;background:var(--surface)}
+}
+.m-header{background:#0F1F3D;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:sticky;top:0;z-index:50}
+.m-header-logo{width:32px;height:32px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.m-header-title{font-size:15px;font-weight:600;flex:1}
+.m-header-name{font-size:11px;color:rgba(255,255,255,.6)}
+.m-logout{background:none;border:none;color:rgba(255,255,255,.7);font-size:18px;padding:6px}
+.m-content{flex:1;overflow-y:auto;padding:14px;padding-bottom:80px;-webkit-overflow-scrolling:touch}
+.m-banner{background:var(--red-lt);color:var(--red);padding:10px 14px;font-size:12px;font-weight:500;display:none}
+.m-banner.show{display:block}
+.m-tabs{display:flex;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0}
+.m-tab{flex:1;text-align:center;padding:11px 4px;font-size:12px;color:var(--text2);border-bottom:2px solid transparent;font-weight:500}
+.m-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.m-tab-icon{font-size:18px;display:block;margin-bottom:2px}
+.m-section{display:none}
+.m-section.active{display:block}
+/* Carte véhicule mobile */
+.m-vcard{background:#fff;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.m-vcard-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.m-vcard-icon{width:48px;height:48px;border-radius:12px;background:var(--blue-lt);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.m-vcard-name{font-size:17px;font-weight:700;color:var(--text)}
+.m-vcard-plate{font-size:13px;color:var(--text2);font-family:monospace;margin-top:1px}
+.m-vcard-status{margin-left:auto}
+.m-status-pill{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px}
+.m-status-pill.green{background:var(--green-lt);color:var(--green)}
+.m-status-pill.orange{background:var(--orange-lt);color:var(--orange)}
+.m-status-pill.red{background:var(--red-lt);color:var(--red)}
+.m-status-dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.m-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.m-info-box{background:var(--surface);border-radius:10px;padding:10px 12px}
+.m-info-label{font-size:11px;color:var(--text2);margin-bottom:3px}
+.m-info-value{font-size:15px;font-weight:600;color:var(--text)}
+.m-prog-wrap{margin-bottom:6px}
+.m-prog-label{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:5px}
+.m-prog-bar{height:10px;background:var(--surface);border-radius:6px;overflow:hidden}
+.m-prog-fill{height:100%;border-radius:6px;transition:width .4s}
+.m-prog-fill.green{background:linear-gradient(90deg,#7ab82e,#63991a)}
+.m-prog-fill.orange{background:linear-gradient(90deg,#f5b042,#ef9f27)}
+.m-prog-fill.red{background:linear-gradient(90deg,#ea5d5c,#e24b4a)}
+.m-prog-sub{font-size:11px;color:var(--text2);margin-top:4px;text-align:right}
+/* Bouton saisie km flottant */
+.m-km-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:600;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px}
+.m-km-btn:active{opacity:.85}
+/* Empty state mobile */
+.m-empty{text-align:center;padding:60px 20px;color:var(--text2)}
+.m-empty-icon{font-size:48px;margin-bottom:14px}
+/* Alertes mobile */
+.m-alert{display:flex;gap:10px;background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:10px;border-left:4px solid}
+.m-alert.red{border-color:var(--red)}
+.m-alert.orange{border-color:var(--orange)}
+.m-alert-icon{font-size:18px;flex-shrink:0}
+.m-alert-title{font-size:13px;font-weight:600;color:var(--text)}
+.m-alert-desc{font-size:12px;color:var(--text2);margin-top:2px;line-height:1.4}
+/* Historique mobile */
+.m-hist-item{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start}
+.m-hist-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);margin-top:5px;flex-shrink:0}
+.m-hist-text{font-size:13px;color:var(--text)}
+.m-hist-date{font-size:11px;color:var(--text2);margin-top:2px}
+/* Modal saisie km mobile (bottom sheet) */
+.m-sheet-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000}
+.m-sheet-bg.open{display:block}
+.m-sheet{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;padding:20px;z-index:1001;transform:translateY(100%);transition:transform .25s ease}
+.m-sheet-bg.open .m-sheet{transform:translateY(0)}
+.m-sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px}
+.m-sheet-title{font-size:16px;font-weight:700;margin-bottom:4px}
+.m-sheet-sub{font-size:13px;color:var(--text2);margin-bottom:16px}
+.m-sheet-input{width:100%;font-size:22px;font-weight:700;padding:14px;border:2px solid var(--border);border-radius:12px;text-align:center;margin-bottom:6px}
+.m-sheet-input:focus{border-color:var(--blue);outline:none}
+.m-sheet-hint{font-size:12px;color:var(--text2);text-align:center;margin-bottom:18px}
+.m-sheet-actions{display:flex;gap:10px}
+.m-sheet-btn{flex:1;padding:13px;border-radius:12px;font-size:14px;font-weight:600;border:none}
+.m-sheet-cancel{background:var(--surface);color:var(--text)}
+.m-sheet-confirm{background:var(--blue);color:#fff}
+/* RESPONSIVE old fallback */
+@media(max-width:768px){
   .grid-2{grid-template-columns:1fr}
   .form-grid{grid-template-columns:1fr}
 }
@@ -314,6 +389,46 @@ tr:hover td{background:var(--surface)}
         </div>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- ================= MOBILE VIEW ================= -->
+<div id="mobile-view">
+  <div class="m-header">
+    <div class="m-header-logo">🚗</div>
+    <div>
+      <div class="m-header-title">FleetManager</div>
+      <div class="m-header-name" id="m-user-name">—</div>
+    </div>
+    <button class="m-logout" onclick="doLogout()">↩</button>
+  </div>
+  <div class="m-banner" id="m-banner"></div>
+
+  <div class="m-tabs">
+    <div class="m-tab active" data-mtab="m-vehicles"><span class="m-tab-icon">🚗</span>Véhicules</div>
+    <div class="m-tab" data-mtab="m-alerts"><span class="m-tab-icon">🔔</span>Alertes</div>
+    <div class="m-tab" data-mtab="m-history"><span class="m-tab-icon">📋</span>Historique</div>
+  </div>
+
+  <div class="m-content">
+    <div class="m-section active" id="m-vehicles"></div>
+    <div class="m-section" id="m-alerts"></div>
+    <div class="m-section" id="m-history"></div>
+  </div>
+</div>
+
+<!-- Bottom sheet saisie km mobile -->
+<div class="m-sheet-bg" id="m-km-sheet">
+  <div class="m-sheet" onclick="event.stopPropagation()">
+    <div class="m-sheet-handle"></div>
+    <div class="m-sheet-title" id="m-km-title">Mise à jour kilométrage</div>
+    <div class="m-sheet-sub" id="m-km-sub"></div>
+    <input type="number" class="m-sheet-input" id="m-km-input" placeholder="0" inputmode="numeric">
+    <div class="m-sheet-hint" id="m-km-hint"></div>
+    <div class="m-sheet-actions">
+      <button class="m-sheet-btn m-sheet-cancel" onclick="closeMKmSheet()">Annuler</button>
+      <button class="m-sheet-btn m-sheet-confirm" onclick="saveMKm()">Valider</button>
     </div>
   </div>
 </div>
@@ -574,6 +689,8 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('user-name').textContent = (currentUserData.prenom+' '+currentUserData.nom).trim() || user.email;
     document.getElementById('user-role').textContent = currentUserData.role === 'admin' ? 'Administrateur groupe' : currentUserData.role === 'admin_societe' ? 'Admin société' : 'Utilisateur';
     document.getElementById('user-avatar').textContent = initials((currentUserData.prenom+' '+currentUserData.nom).trim() || user.email);
+    const mUserName = document.getElementById('m-user-name');
+    if (mUserName) mUserName.textContent = (currentUserData.prenom+' '+currentUserData.nom).trim() || user.email;
     applyRoleUI();
     startListeners();
   } else {
@@ -707,27 +824,31 @@ function renderDashboard() {
 }
 
 // ---- ALERTS ----
-function renderAlerts() {
-  const vehs = filteredVehicles();
+function computeAlertsFor(vehs) {
   const alertsList = [];
-
   vehs.forEach(v => {
     const pct = getPct(v);
     const name = `${v.marque||''} ${v.modele||''} (${v.immat||'?'})`;
-    if (pct >= 100) alertsList.push({ type:'red', title:'Dépassement kilométrique', desc:`${name} — ${pct-100 > 0 ? pct-100+'%' : ''} au-delà du cycle d'entretien.` });
-    else if (pct >= settings.seuilKm) alertsList.push({ type:'orange', title:`${settings.seuilKm}% kilométrage atteint`, desc:`${name} — ${pct}% du cycle. Planifier l'entretien.` });
+    if (pct >= 100) alertsList.push({ type:'red', vehId:v.id, title:'Dépassement kilométrique', desc:`${name} — ${pct-100 > 0 ? pct-100+'%' : ''} au-delà du cycle d'entretien.` });
+    else if (pct >= settings.seuilKm) alertsList.push({ type:'orange', vehId:v.id, title:`${settings.seuilKm}% kilométrage atteint`, desc:`${name} — ${pct}% du cycle. Planifier l'entretien.` });
 
     const insJ = daysUntil(v.insExp);
     if (insJ !== null) {
-      if (insJ < 0) alertsList.push({ type:'red', title:'Assurance expirée', desc:`${name} — expirée depuis ${Math.abs(insJ)} jour(s).` });
-      else if (insJ <= 14) alertsList.push({ type:'orange', title:'Assurance expire bientôt', desc:`${name} — expire dans ${insJ} jour(s) (${v.insExp}).` });
+      if (insJ < 0) alertsList.push({ type:'red', vehId:v.id, title:'Assurance expirée', desc:`${name} — expirée depuis ${Math.abs(insJ)} jour(s).` });
+      else if (insJ <= 14) alertsList.push({ type:'orange', vehId:v.id, title:'Assurance expire bientôt', desc:`${name} — expire dans ${insJ} jour(s) (${v.insExp}).` });
     }
     const vtJ = daysUntil(v.vtExp);
     if (vtJ !== null) {
-      if (vtJ < 0) alertsList.push({ type:'red', title:'Visite technique expirée', desc:`${name} — expirée depuis ${Math.abs(vtJ)} jour(s).` });
-      else if (vtJ <= 14) alertsList.push({ type:'orange', title:'Visite technique proche', desc:`${name} — expire dans ${vtJ} jour(s) (${v.vtExp}).` });
+      if (vtJ < 0) alertsList.push({ type:'red', vehId:v.id, title:'Visite technique expirée', desc:`${name} — expirée depuis ${Math.abs(vtJ)} jour(s).` });
+      else if (vtJ <= 14) alertsList.push({ type:'orange', vehId:v.id, title:'Visite technique proche', desc:`${name} — expire dans ${vtJ} jour(s) (${v.vtExp}).` });
     }
   });
+  return alertsList;
+}
+
+function renderAlerts() {
+  const vehs = filteredVehicles();
+  const alertsList = computeAlertsFor(vehs);
 
   // Badge nav
   document.getElementById('badge-alerts').textContent = alertsList.length;
@@ -750,6 +871,8 @@ function renderAlerts() {
       <div class="alert-icon">${a.type==='red'?'🔴':'🟠'}</div>
       <div><div class="alert-title">${a.title}</div><div class="alert-desc">${a.desc}</div></div>
     </div>`).join('');
+
+  renderMobile();
 }
 
 // ---- VEHICLES ----
@@ -1252,6 +1375,154 @@ window.openModal = function(id, skipReset) {
 };
 window.closeModal = function(id) { document.getElementById(id).classList.remove('open'); };
 document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+
+// ================= MOBILE VIEW =================
+let mKmVeh = null;
+
+document.querySelectorAll('.m-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.m-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.m-section').forEach(s=>s.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.mtab).classList.add('active');
+  });
+});
+
+function renderMobile() {
+  if (!currentUserData) return;
+  renderMobileVehicles();
+  renderMobileAlerts();
+  renderMobileHistory();
+}
+
+function myMobileVehicles() {
+  // Utilisateur standard : uniquement ses véhicules affectés. Admin : tout son périmètre.
+  if (currentUserData.role === 'user') {
+    const fullName = (currentUserData.prenom+' '+currentUserData.nom).trim().toLowerCase();
+    return allVehicles.filter(v => (v.owner||'').toLowerCase().trim() === fullName);
+  }
+  return filteredVehicles();
+}
+
+function renderMobileVehicles() {
+  const el = document.getElementById('m-vehicles');
+  if (!el) return;
+  const vehs = myMobileVehicles();
+  if (vehs.length === 0) {
+    el.innerHTML = `<div class="m-empty"><div class="m-empty-icon">🚗</div>Aucun véhicule ${currentUserData.role==='user'?'ne vous est affecté':'enregistré'}.</div>`;
+    return;
+  }
+  el.innerHTML = vehs.map(v => {
+    const pct = getPct(v); const s = getVehStatus(v);
+    const remaining = Math.max((v.lastKm||0)+v.freq-v.km, 0);
+    const insJ = daysUntil(v.insExp);
+    return `
+    <div class="m-vcard">
+      <div class="m-vcard-top">
+        <div class="m-vcard-icon">🚗</div>
+        <div>
+          <div class="m-vcard-name">${v.marque||''} ${v.modele||''}</div>
+          <div class="m-vcard-plate">${v.immat||'—'}</div>
+        </div>
+        <div class="m-vcard-status">
+          <div class="m-status-pill ${s}"><span class="m-status-dot"></span>${statusLabel(s)}</div>
+        </div>
+      </div>
+      <div class="m-info-grid">
+        <div class="m-info-box"><div class="m-info-label">Kilométrage actuel</div><div class="m-info-value">${fmt(v.km)} km</div></div>
+        <div class="m-info-box"><div class="m-info-label">Km avant échéance</div><div class="m-info-value" style="color:${remaining===0?'var(--red)':'var(--text)'}">${remaining===0?'Dépassé':fmt(remaining)+' km'}</div></div>
+      </div>
+      <div class="m-prog-wrap">
+        <div class="m-prog-label"><span>Progression entretien</span><span>${pct}%</span></div>
+        <div class="m-prog-bar"><div class="m-prog-fill ${s}" style="width:${Math.min(pct,100)}%"></div></div>
+        <div class="m-prog-sub">${insJ!==null && insJ<=14 ? (insJ<0?'⚠️ Assurance expirée':'⚠️ Assurance expire dans '+insJ+'j') : ''}</div>
+      </div>
+      <button class="m-km-btn" onclick="openMKmSheet('${v.id}')">📏 Mettre à jour le kilométrage</button>
+    </div>`;
+  }).join('');
+}
+
+function renderMobileAlerts() {
+  const el = document.getElementById('m-alerts');
+  if (!el) return;
+  const vehs = myMobileVehicles();
+  const alerts = computeAlertsFor(vehs);
+  if (alerts.length === 0) {
+    el.innerHTML = `<div class="m-empty"><div class="m-empty-icon">✅</div>Aucune alerte active.</div>`;
+    return;
+  }
+  el.innerHTML = alerts.map(a => `
+    <div class="m-alert ${a.type}">
+      <div class="m-alert-icon">${a.type==='red'?'🔴':'🟠'}</div>
+      <div><div class="m-alert-title">${a.title}</div><div class="m-alert-desc">${a.desc}</div></div>
+    </div>`).join('');
+
+  // Bandeau mobile
+  const reds = alerts.filter(a=>a.type==='red');
+  const banner = document.getElementById('m-banner');
+  if (banner) {
+    if (reds.length) { banner.classList.add('show'); banner.textContent = `⚠️ ${reds.length} alerte(s) critique(s) à traiter`; }
+    else banner.classList.remove('show');
+  }
+}
+
+function renderMobileHistory() {
+  const el = document.getElementById('m-history');
+  if (!el) return;
+  const myVehIds = myMobileVehicles().map(v=>v.id);
+  let hist = allHistory.filter(h => h.vehiculeId && myVehIds.includes(h.vehiculeId));
+  if (hist.length === 0) {
+    el.innerHTML = `<div class="m-empty"><div class="m-empty-icon">📋</div>Aucun historique pour le moment.</div>`;
+    return;
+  }
+  const icons = { km:'📏', modif_vehicule:'✏️', entretien:'🔧' };
+  el.innerHTML = hist.slice(0,30).map(h => `
+    <div class="m-hist-item">
+      <div class="m-hist-dot"></div>
+      <div>
+        <div class="m-hist-text">${icons[h.type]||'📝'} ${h.detail || (h.type==='km' ? fmt(h.oldKm)+' → '+fmt(h.newKm)+' km' : h.type)}</div>
+        <div class="m-hist-date">${fmtDate(h.timestamp)} — ${h.auteur||'?'}</div>
+      </div>
+    </div>`).join('');
+}
+
+window.openMKmSheet = function(id) {
+  const v = allVehicles.find(x=>x.id===id);
+  if (!v) return;
+  mKmVeh = v;
+  document.getElementById('m-km-sub').textContent = `${v.marque||''} ${v.modele||''} (${v.immat||''}) — actuel : ${fmt(v.km)} km`;
+  document.getElementById('m-km-input').value = '';
+  document.getElementById('m-km-input').placeholder = (v.km+1).toString();
+  document.getElementById('m-km-hint').textContent = `La valeur doit être supérieure à ${fmt(v.km)} km`;
+  document.getElementById('m-km-sheet').classList.add('open');
+  setTimeout(()=>document.getElementById('m-km-input').focus(), 200);
+};
+
+window.closeMKmSheet = function() {
+  document.getElementById('m-km-sheet').classList.remove('open');
+  mKmVeh = null;
+};
+document.getElementById('m-km-sheet').addEventListener('click', closeMKmSheet);
+
+window.saveMKm = async function() {
+  if (!mKmVeh) return;
+  const val = parseInt(document.getElementById('m-km-input').value);
+  if (!val || val <= mKmVeh.km) {
+    document.getElementById('m-km-hint').innerHTML = `<span style="color:var(--red)">❌ La valeur doit être supérieure à ${fmt(mKmVeh.km)} km</span>`;
+    return;
+  }
+  try {
+    const oldKm = mKmVeh.km;
+    await updateDoc(doc(db,'vehicules',mKmVeh.id), { km: val });
+    await addDoc(collection(db,'historique'), {
+      vehiculeId: mKmVeh.id, type:'km', oldKm, newKm: val,
+      auteur: (currentUserData.prenom+' '+currentUserData.nom).trim(),
+      timestamp: serverTimestamp()
+    });
+    closeMKmSheet();
+    toast('✅ Kilométrage mis à jour : '+fmt(val)+' km');
+  } catch(e) { toast('❌ Erreur : '+e.message); }
+};
 
 </script>
 </body>

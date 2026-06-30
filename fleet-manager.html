@@ -280,7 +280,6 @@ tr:hover td{background:var(--surface)}
     <div id="alert-banner"></div>
     <div class="header">
       <div class="page-title" id="page-title">Tableau de bord</div>
-      <span id="debug-badge" style="font-size:10px;background:#fee;color:#a00;padding:3px 8px;border-radius:6px;font-family:monospace"></span>
       <select class="company-filter" id="company-filter" onchange="onCompanyFilter()">
         <option value="">Toutes les sociétés</option>
       </select>
@@ -449,7 +448,10 @@ tr:hover td{background:var(--surface)}
       <div class="form-group"><label>Kilométrage actuel *</label><input type="number" id="veh-km" placeholder="45000"></div>
       <div class="form-group"><label>Fréquence entretien (km) *</label><input type="number" id="veh-freq" placeholder="10000"></div>
       <div class="form-group"><label>Dernier entretien (km)</label><input type="number" id="veh-last-km" placeholder="40000"></div>
-      <div class="form-group"><label>Utilisateur affecté</label><input type="text" id="veh-owner" placeholder="Prénom Nom"></div>
+      <div class="form-group full">
+        <label>Utilisateur(s) affecté(s) <span style="font-weight:400;color:var(--text2)">— coche un ou plusieurs comptes</span></label>
+        <div id="veh-owners-list" style="border:1px solid var(--border);border-radius:8px;padding:8px;max-height:140px;overflow-y:auto;background:#fff"></div>
+      </div>
       <div class="form-group"><label>Service</label><input type="text" id="veh-service" placeholder="Commercial"></div>
       <div class="form-group"><label>Date de mise en circulation</label><input type="date" id="veh-date-circ"></div>
       <div class="form-group"><label>Expiration assurance</label><input type="date" id="veh-ins-exp"></div>
@@ -714,8 +716,6 @@ onAuthStateChanged(auth, async user => {
     if (mUserName) mUserName.textContent = (currentUserData.prenom+' '+currentUserData.nom).trim() || user.email;
     applyRoleUI();
     startListeners();
-    const dbg = document.getElementById('debug-badge');
-    if (dbg) dbg.textContent = 'DEBUG role="'+currentUserData.role+'" nom="'+currentUserData.prenom+' '+currentUserData.nom+'"';
   } else {
     currentUser = null; currentUserData = null;
     document.getElementById('auth-screen').style.display = 'flex';
@@ -804,8 +804,8 @@ function startListeners() {
     if (document.getElementById('page-history').classList.contains('active')) renderHistory();
   });
 
-  // Utilisateurs (admin seulement)
-  if (isAdmin()) {
+  // Utilisateurs (admin groupe + admin société, nécessaire pour l'attribution de véhicules)
+  if (isAdminOrSoc()) {
     onSnapshot(collection(db,'utilisateurs'), snap => {
       allUsers = snap.docs.map(d => ({id:d.id,...d.data()}));
       if (document.getElementById('page-users').classList.contains('active')) renderUsers();
@@ -816,8 +816,7 @@ function startListeners() {
 function filteredVehicles() {
   // Utilisateur standard : uniquement les véhicules qui lui sont affectés (cahier des charges §4.1)
   if (currentUserData.role === 'user') {
-    const fullName = (currentUserData.prenom+' '+currentUserData.nom).trim().toLowerCase();
-    return allVehicles.filter(v => (v.owner||'').toLowerCase().trim() === fullName);
+    return allVehicles.filter(v => Array.isArray(v.ownerIds) && v.ownerIds.includes(currentUser.uid));
   }
   const company = document.getElementById('company-filter').value;
   if (isAdmin()) {
@@ -1029,8 +1028,34 @@ window.saveKm = async function() {
 };
 
 // ---- VEHICLE CRUD ----
+function getCheckedOwners() {
+  const boxes = document.querySelectorAll('#veh-owners-list input[type=checkbox]:checked');
+  const ids = Array.from(boxes).map(b=>b.value);
+  const names = Array.from(boxes).map(b=>b.dataset.name);
+  return { ids, names };
+}
+
+function renderOwnersCheckboxes(selectedIds) {
+  selectedIds = selectedIds || [];
+  const el = document.getElementById('veh-owners-list');
+  const standardUsers = allUsers.filter(u => u.role === 'user');
+  if (standardUsers.length === 0) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text2)">Aucun utilisateur standard créé pour l\'instant. Créez-en un dans Utilisateurs.</div>';
+    return;
+  }
+  el.innerHTML = standardUsers.map(u => {
+    const fullName = (u.prenom+' '+u.nom).trim();
+    const checked = selectedIds.includes(u.id) ? 'checked' : '';
+    return `<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:13px;cursor:pointer">
+      <input type="checkbox" value="${u.id}" data-name="${fullName}" ${checked}>
+      <span>${fullName}${u.societeId ? ' — '+(allSocietes.find(s=>s.id===u.societeId)?.nom||'') : ''}</span>
+    </label>`;
+  }).join('');
+}
+
 window.saveVehicle = async function() {
   const id = document.getElementById('veh-edit-id').value;
+  const { ids: ownerIds, names: ownerNames } = getCheckedOwners();
   const data = {
     societeId: document.getElementById('veh-societe').value,
     marque: document.getElementById('veh-marque').value.trim(),
@@ -1040,7 +1065,8 @@ window.saveVehicle = async function() {
     km: parseInt(document.getElementById('veh-km').value)||0,
     freq: parseInt(document.getElementById('veh-freq').value)||10000,
     lastKm: parseInt(document.getElementById('veh-last-km').value)||0,
-    owner: document.getElementById('veh-owner').value.trim(),
+    ownerIds: ownerIds,
+    owner: ownerNames.join(', '),
     service: document.getElementById('veh-service').value.trim(),
     dateCirc: document.getElementById('veh-date-circ').value,
     insExp: document.getElementById('veh-ins-exp').value,
@@ -1077,7 +1103,7 @@ window.editVehicle = function(id) {
   document.getElementById('veh-km').value = v.km||'';
   document.getElementById('veh-freq').value = v.freq||10000;
   document.getElementById('veh-last-km').value = v.lastKm||'';
-  document.getElementById('veh-owner').value = v.owner||'';
+  renderOwnersCheckboxes(v.ownerIds||[]);
   document.getElementById('veh-service').value = v.service||'';
   document.getElementById('veh-date-circ').value = v.dateCirc||'';
   document.getElementById('veh-ins-exp').value = v.insExp||'';
@@ -1426,9 +1452,10 @@ window.openModal = function(id, skipReset) {
   if (id==='modal-add-veh') {
     document.getElementById('veh-modal-title').textContent = 'Ajouter un véhicule';
     document.getElementById('veh-edit-id').value = '';
-    ['veh-marque','veh-modele','veh-immat','veh-vin','veh-owner','veh-service'].forEach(f=>document.getElementById(f).value='');
+    ['veh-marque','veh-modele','veh-immat','veh-vin','veh-service'].forEach(f=>document.getElementById(f).value='');
     ['veh-km','veh-freq','veh-last-km'].forEach(f=>document.getElementById(f).value='');
     ['veh-date-circ','veh-ins-exp','veh-vt-exp'].forEach(f=>document.getElementById(f).value='');
+    renderOwnersCheckboxes([]);
   }
 };
 window.closeModal = function(id) { document.getElementById(id).classList.remove('open'); };
@@ -1456,8 +1483,7 @@ function renderMobile() {
 function myMobileVehicles() {
   // Utilisateur standard : uniquement ses véhicules affectés. Admin : tout son périmètre.
   if (currentUserData.role === 'user') {
-    const fullName = (currentUserData.prenom+' '+currentUserData.nom).trim().toLowerCase();
-    return allVehicles.filter(v => (v.owner||'').toLowerCase().trim() === fullName);
+    return allVehicles.filter(v => Array.isArray(v.ownerIds) && v.ownerIds.includes(currentUser.uid));
   }
   return filteredVehicles();
 }

@@ -513,7 +513,7 @@ tr:hover td{background:var(--surface)}
       <div class="form-group"><label>Mot de passe *</label><input type="password" id="user-password" placeholder="Min. 6 caractères"></div>
       <div class="form-group"><label>Société</label><select id="user-societe"></select></div>
       <div class="form-group"><label>Rôle</label>
-        <select id="user-role">
+        <select id="new-user-role">
           <option value="user">Utilisateur standard</option>
           <option value="admin_societe">Administrateur société</option>
           <option value="admin">Administrateur groupe</option>
@@ -1241,7 +1241,7 @@ window.createUser = async function() {
   const pw = document.getElementById('user-password').value;
   const prenom = document.getElementById('user-prenom').value.trim();
   const nom = document.getElementById('user-nom').value.trim();
-  const role = document.getElementById('user-role').value;
+  const role = document.getElementById('new-user-role').value;
   const societeId = document.getElementById('user-societe').value;
   if (!email||!pw||!prenom||!nom) { toast('❌ Tous les champs obligatoires'); return; }
   if (pw.length < 6) { toast('❌ Mot de passe minimum 6 caractères'); return; }

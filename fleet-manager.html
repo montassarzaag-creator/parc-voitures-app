@@ -258,10 +258,10 @@ tr:hover td{background:var(--surface)}
       <div class="nav-item" data-page="alerts">🔔 <span>Alertes</span> <span class="nav-badge" id="badge-alerts">0</span></div>
       <div class="nav-section">Parc</div>
       <div class="nav-item" data-page="vehicles">🚗 <span>Véhicules</span></div>
-      <div class="nav-item" data-page="maintenance">🔧 <span>Entretiens</span></div>
-      <div class="nav-item" data-page="documents">📄 <span>Documents</span></div>
-      <div class="nav-section">Analyse</div>
-      <div class="nav-item" data-page="history">📋 <span>Historique</span></div>
+      <div class="nav-item staff-only" data-page="maintenance">🔧 <span>Entretiens</span></div>
+      <div class="nav-item staff-only" data-page="documents">📄 <span>Documents</span></div>
+      <div class="nav-section staff-only">Analyse</div>
+      <div class="nav-item staff-only" data-page="history">📋 <span>Historique</span></div>
       <div class="nav-section admin-only">Administration</div>
       <div class="nav-item admin-only" data-page="users">👥 <span>Utilisateurs</span></div>
       <div class="nav-item admin-only" data-page="settings">⚙️ <span>Paramètres</span></div>
@@ -723,15 +723,34 @@ onAuthStateChanged(auth, async user => {
 function applyRoleUI() {
   const adminEls = document.querySelectorAll('.admin-only');
   adminEls.forEach(el => el.style.display = isAdmin() ? '' : 'none');
+  // staff-only : visible pour admin groupe + admin société, caché pour utilisateur standard
+  const staffEls = document.querySelectorAll('.staff-only');
+  staffEls.forEach(el => el.style.display = isAdminOrSoc() ? '' : 'none');
+  // Sécurité supplémentaire : si un utilisateur standard se trouve sur une page restreinte (lien direct, état précédent…), le ramener au tableau de bord
+  if (currentUserData.role === 'user') {
+    const restrictedPages = ['maintenance','documents','history','users','settings'];
+    const activeSection = document.querySelector('.section.active');
+    if (activeSection && restrictedPages.some(p => activeSection.id === 'page-'+p)) {
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelector('.nav-item[data-page="dashboard"]').classList.add('active');
+      document.getElementById('page-dashboard').classList.add('active');
+      document.getElementById('page-title').textContent = 'Tableau de bord';
+    }
+  }
 }
 
 // ---- NAVIGATION ----
 document.querySelectorAll('.nav-item[data-page]').forEach(item => {
   item.addEventListener('click', () => {
+    const page = item.dataset.page;
+    const restrictedAdmin = ['users','settings'];
+    const restrictedStaff = ['maintenance','documents','history'];
+    if (restrictedAdmin.includes(page) && !isAdmin()) return;
+    if (restrictedStaff.includes(page) && !isAdminOrSoc()) return;
     document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     item.classList.add('active');
-    const page = item.dataset.page;
     document.getElementById('page-'+page).classList.add('active');
     const titles = { dashboard:'Tableau de bord', alerts:'Alertes', vehicles:'Parc de véhicules', maintenance:'Entretiens préventifs', documents:'Documents administratifs', history:'Historique', users:'Utilisateurs', settings:'Paramètres' };
     document.getElementById('page-title').textContent = titles[page]||page;
@@ -792,9 +811,17 @@ function startListeners() {
 }
 
 function filteredVehicles() {
+  // Utilisateur standard : uniquement les véhicules qui lui sont affectés (cahier des charges §4.1)
+  if (currentUserData.role === 'user') {
+    const fullName = (currentUserData.prenom+' '+currentUserData.nom).trim().toLowerCase();
+    return allVehicles.filter(v => (v.owner||'').toLowerCase().trim() === fullName);
+  }
   const company = document.getElementById('company-filter').value;
-  if (!company) return allVehicles;
-  if (isAdmin()) return allVehicles.filter(v => v.societeId === company);
+  if (isAdmin()) {
+    if (!company) return allVehicles;
+    return allVehicles.filter(v => v.societeId === company);
+  }
+  // Admin société : tous les véhicules de sa société
   return allVehicles.filter(v => v.societeId === (currentUserData.societeId||''));
 }
 

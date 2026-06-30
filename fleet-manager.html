@@ -629,12 +629,24 @@ function daysUntil(dateStr) {
   const now = new Date();
   return Math.ceil((d - now) / 86400000);
 }
-function getVehStatus(v) {
+function getKmStatus(v) {
   const pct = v.freq > 0 ? ((v.km - (v.lastKm||0)) / v.freq) * 100 : 0;
-  const insJours = daysUntil(v.insExp);
-  const vtJours = daysUntil(v.vtExp);
-  if (pct >= 100 || insJours !== null && insJours < 0 || vtJours !== null && vtJours < 0) return 'red';
-  if (pct >= settings.seuilKm || insJours !== null && insJours <= 14 || vtJours !== null && vtJours <= 14) return 'orange';
+  if (pct >= 100) return 'red';
+  if (pct >= settings.seuilKm) return 'orange';
+  return 'green';
+}
+function getDocStatus(dateStr) {
+  const j = daysUntil(dateStr);
+  if (j === null) return 'gray';
+  if (j < 0) return 'red';
+  if (j <= 14) return 'orange';
+  return 'green';
+}
+function getVehStatus(v) {
+  // Statut global = le pire des 3 (km, assurance, visite technique) — utilisé pour le dashboard/alertes globales
+  const statuses = [getKmStatus(v), getDocStatus(v.insExp), getDocStatus(v.vtExp)];
+  if (statuses.includes('red')) return 'red';
+  if (statuses.includes('orange')) return 'orange';
   return 'green';
 }
 function getPct(v) {
@@ -642,7 +654,10 @@ function getPct(v) {
   return Math.min(Math.round(((v.km - (v.lastKm||0)) / v.freq) * 100), 120);
 }
 function statusLabel(s) {
-  return s === 'green' ? 'Normal' : s === 'orange' ? 'Proche' : 'Dépassé';
+  return s === 'green' ? 'Normal' : s === 'orange' ? 'Proche' : s === 'red' ? 'Dépassé' : '—';
+}
+function docStatusLabel(s) {
+  return s === 'green' ? 'Valide' : s === 'orange' ? 'Bientôt' : s === 'red' ? 'Expiré' : '—';
 }
 function initials(name) {
   return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
@@ -810,14 +825,14 @@ function renderDashboard() {
   document.getElementById('dash-table-wrap').innerHTML = `
     <table><thead><tr><th>Véhicule</th><th>Immat.</th><th>Société</th><th>Kilométrage</th><th>Avancement</th><th>État</th></tr></thead>
     <tbody>${urgent.map(v => {
-      const pct = getPct(v); const s = getVehStatus(v);
+      const pct = getPct(v); const kmS = getKmStatus(v); const s = getVehStatus(v);
       const soc = allSocietes.find(x=>x.id===v.societeId);
       return `<tr>
         <td><strong>${v.marque||''} ${v.modele||''}</strong></td>
         <td style="font-family:monospace">${v.immat||'—'}</td>
         <td>${soc?soc.nom:'—'}</td>
         <td>${fmt(v.km)} km</td>
-        <td style="min-width:120px"><div style="display:flex;align-items:center;gap:6px"><div class="prog-bar"><div class="prog-fill ${s}" style="width:${Math.min(pct,100)}%"></div></div><span style="font-size:11px;color:var(--text2)">${pct}%</span></div></td>
+        <td style="min-width:120px"><div style="display:flex;align-items:center;gap:6px"><div class="prog-bar"><div class="prog-fill ${kmS}" style="width:${Math.min(pct,100)}%"></div></div><span style="font-size:11px;color:var(--text2)">${pct}%</span></div></td>
         <td><span class="badge ${s}">${statusLabel(s)}</span></td>
       </tr>`;
     }).join('')}</tbody></table>`;
@@ -888,9 +903,10 @@ function renderVehicles() {
     return;
   }
   document.getElementById('veh-table-wrap').innerHTML = `
-    <table><thead><tr><th>Véhicule</th><th>Immat.</th><th>Société</th><th>Utilisateur</th><th>Kilométrage</th><th>Entretien</th><th>État</th><th>Actions</th></tr></thead>
+    <table><thead><tr><th>Véhicule</th><th>Immat.</th><th>Société</th><th>Utilisateur</th><th>Kilométrage</th><th>Entretien</th><th>Assurance</th><th>Visite tech.</th><th>État global</th><th>Actions</th></tr></thead>
     <tbody>${vehs.map(v => {
-      const pct = getPct(v); const s = getVehStatus(v);
+      const pct = getPct(v); const kmS = getKmStatus(v); const s = getVehStatus(v);
+      const insS = getDocStatus(v.insExp); const vtS = getDocStatus(v.vtExp);
       const soc = allSocietes.find(x=>x.id===v.societeId);
       return `<tr>
         <td><strong>${v.marque||''} ${v.modele||''}</strong></td>
@@ -898,7 +914,9 @@ function renderVehicles() {
         <td>${soc?soc.nom:'—'}</td>
         <td>${v.owner||'—'}</td>
         <td>${fmt(v.km)} km</td>
-        <td style="min-width:110px"><div style="display:flex;align-items:center;gap:6px"><div class="prog-bar"><div class="prog-fill ${s}" style="width:${Math.min(pct,100)}%"></div></div><span style="font-size:11px">${pct}%</span></div></td>
+        <td style="min-width:110px"><div style="display:flex;align-items:center;gap:6px"><div class="prog-bar"><div class="prog-fill ${kmS}" style="width:${Math.min(pct,100)}%"></div></div><span style="font-size:11px">${pct}%</span></div></td>
+        <td><span class="badge ${insS}">${docStatusLabel(insS)}</span><div style="font-size:10px;color:var(--text2);margin-top:2px">${v.insExp||'—'}</div></td>
+        <td><span class="badge ${vtS}">${docStatusLabel(vtS)}</span><div style="font-size:10px;color:var(--text2);margin-top:2px">${v.vtExp||'—'}</div></td>
         <td><span class="badge ${s}">${statusLabel(s)}</span></td>
         <td style="white-space:nowrap;display:flex;gap:4px">
           <button class="btn sm" onclick="openVehDetail('${v.id}')">👁</button>
@@ -917,18 +935,19 @@ window.filterVehicles = renderVehicles;
 window.openVehDetail = function(id) {
   const v = allVehicles.find(x=>x.id===id);
   if (!v) return;
-  const pct = getPct(v); const s = getVehStatus(v);
+  const pct = getPct(v); const kmS = getKmStatus(v); const s = getVehStatus(v);
+  const insS = getDocStatus(v.insExp); const vtS = getDocStatus(v.vtExp);
   const soc = allSocietes.find(x=>x.id===v.societeId);
   const remaining = Math.max((v.lastKm||0)+v.freq-v.km, 0);
   document.getElementById('detail-title').textContent = `${v.marque||''} ${v.modele||''} — ${v.immat||''}`;
   document.getElementById('detail-content').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-      ${[['Kilométrage actuel',fmt(v.km)+' km'],['Prochain entretien',fmt((v.lastKm||0)+v.freq)+' km'],['Km restants',remaining===0?'<span style="color:var(--red)">Dépassé</span>':fmt(remaining)+' km'],['Société',soc?soc.nom:'—'],['Utilisateur',v.owner||'—'],['Service',v.service||'—'],['Assurance expire',v.insExp||'—'],['Visite technique',v.vtExp||'—'],['État','<span class="badge '+s+'">'+statusLabel(s)+'</span>']].map(([l,val])=>`
+      ${[['Kilométrage actuel',fmt(v.km)+' km'],['Prochain entretien',fmt((v.lastKm||0)+v.freq)+' km'],['Km restants',remaining===0?'<span style="color:var(--red)">Dépassé</span>':fmt(remaining)+' km'],['Société',soc?soc.nom:'—'],['Utilisateur',v.owner||'—'],['Service',v.service||'—'],['Assurance',`<span class="badge ${insS}">${docStatusLabel(insS)}</span> <span style="font-size:11px;color:var(--text2)">${v.insExp||'—'}</span>`],['Visite technique',`<span class="badge ${vtS}">${docStatusLabel(vtS)}</span> <span style="font-size:11px;color:var(--text2)">${v.vtExp||'—'}</span>`],['État global','<span class="badge '+s+'">'+statusLabel(s)+'</span>']].map(([l,val])=>`
         <div style="background:var(--surface);border-radius:8px;padding:10px"><div style="font-size:11px;color:var(--text2);margin-bottom:2px">${l}</div><div style="font-size:13px;font-weight:500">${val}</div></div>`).join('')}
     </div>
     <div style="margin-bottom:14px">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Progression entretien</div>
-      <div class="prog-bar" style="height:10px"><div class="prog-fill ${s}" style="width:${Math.min(pct,100)}%"></div></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Progression entretien (kilométrique)</div>
+      <div class="prog-bar" style="height:10px"><div class="prog-fill ${kmS}" style="width:${Math.min(pct,100)}%"></div></div>
       <div style="font-size:11px;color:var(--text2);margin-top:3px">${pct}% — ${fmt(v.km)} / ${fmt((v.lastKm||0)+v.freq)} km</div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:14px">
@@ -1413,9 +1432,12 @@ function renderMobileVehicles() {
     return;
   }
   el.innerHTML = vehs.map(v => {
-    const pct = getPct(v); const s = getVehStatus(v);
+    const pct = getPct(v); const kmS = getKmStatus(v); const s = getVehStatus(v);
     const remaining = Math.max((v.lastKm||0)+v.freq-v.km, 0);
-    const insJ = daysUntil(v.insExp);
+    const insJ = daysUntil(v.insExp); const vtJ = daysUntil(v.vtExp);
+    const docWarnings = [];
+    if (insJ!==null && insJ<=14) docWarnings.push(insJ<0 ? '⚠️ Assurance expirée' : '⚠️ Assurance expire dans '+insJ+'j');
+    if (vtJ!==null && vtJ<=14) docWarnings.push(vtJ<0 ? '⚠️ Visite technique expirée' : '⚠️ Visite technique expire dans '+vtJ+'j');
     return `
     <div class="m-vcard">
       <div class="m-vcard-top">
@@ -1434,8 +1456,8 @@ function renderMobileVehicles() {
       </div>
       <div class="m-prog-wrap">
         <div class="m-prog-label"><span>Progression entretien</span><span>${pct}%</span></div>
-        <div class="m-prog-bar"><div class="m-prog-fill ${s}" style="width:${Math.min(pct,100)}%"></div></div>
-        <div class="m-prog-sub">${insJ!==null && insJ<=14 ? (insJ<0?'⚠️ Assurance expirée':'⚠️ Assurance expire dans '+insJ+'j') : ''}</div>
+        <div class="m-prog-bar"><div class="m-prog-fill ${kmS}" style="width:${Math.min(pct,100)}%"></div></div>
+        ${docWarnings.length?`<div class="m-prog-sub" style="text-align:left;color:var(--red);font-weight:500">${docWarnings.join(' · ')}</div>`:''}
       </div>
       <button class="m-km-btn" onclick="openMKmSheet('${v.id}')">📏 Mettre à jour le kilométrage</button>
     </div>`;

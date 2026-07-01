@@ -598,14 +598,13 @@ const firebaseConfig = {
   measurementId: "G-0VRJMKCT56"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const mainApp = initializeApp(firebaseConfig);
 
-// Instance Auth unique par onglet — permet plusieurs comptes simultanément
-// chaque onglet a son propre contexte d'authentification indépendant
+// Instance unique par onglet — permet plusieurs comptes simultanément
 const tabId = 'tab_' + Math.random().toString(36).slice(2);
 const tabApp = initializeApp(firebaseConfig, tabId);
 const auth = getAuth(tabApp);
+const db = getFirestore(tabApp);
 
 // Seconde instance pour créer des comptes sans déconnecter l'utilisateur courant
 const secondaryApp = initializeApp(firebaseConfig, tabId+'_secondary');

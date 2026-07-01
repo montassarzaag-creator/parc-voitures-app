@@ -505,6 +505,43 @@ tr:hover td{background:var(--surface)}
   </div>
 </div>
 
+<!-- Correction index KM (admin seulement) -->
+<div class="modal-bg" id="modal-km-correction">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-hdr">
+      <h3>⚠️ Correction d'index kilométrique</h3>
+      <button class="close-btn" onclick="closeModal('modal-km-correction')">×</button>
+    </div>
+    <div id="km-corr-info" style="font-size:13px;color:var(--text2);margin-bottom:14px;padding:10px;background:var(--orange-lt);border-radius:8px;border-left:3px solid var(--orange)"></div>
+    <div class="form-group">
+      <label>Index corrigé (km) *</label>
+      <input type="number" id="km-corr-val" placeholder="Valeur corrigée">
+    </div>
+    <div class="form-group">
+      <label>Motif de correction *</label>
+      <select id="km-corr-motif">
+        <option value="">— Choisir un motif —</option>
+        <option>Erreur de saisie</option>
+        <option>Compteur remplacé</option>
+        <option>Remise à zéro compteur</option>
+        <option>Correction après vérification physique</option>
+        <option>Autre</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Observations</label>
+      <textarea id="km-corr-obs" style="width:100%;min-height:70px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px" placeholder="Détails de la correction…"></textarea>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px;padding:8px;background:var(--surface);border-radius:6px">
+      ⚠️ Cette correction sera enregistrée dans l'historique avec votre nom, la date et le motif. Elle est irréversible.
+    </div>
+    <div class="form-actions">
+      <button class="btn" onclick="closeModal('modal-km-correction')">Annuler</button>
+      <button class="btn danger" onclick="saveKmCorrection()">Confirmer la correction</button>
+    </div>
+  </div>
+</div>
+
 <!-- Ajout Utilisateur -->
 <div class="modal-bg" id="modal-add-user">
   <div class="modal">
@@ -955,6 +992,7 @@ function renderVehicles() {
           <button class="btn sm" onclick="openVehDetail('${v.id}')">👁</button>
           <button class="btn sm" onclick="openKmModal('${v.id}')">📏</button>
           ${isAdminOrSoc()?`<button class="btn sm" onclick="editVehicle('${v.id}')">✏️</button>`:''}
+          ${isAdmin()?`<button class="btn sm" style="background:var(--orange-lt);color:var(--orange);border-color:var(--orange)" onclick="openKmCorrection('${v.id}')" title="Corriger index erroné">⚠️</button>`:''}
           ${isAdmin()?`<button class="btn sm danger" onclick="deleteVehicle('${v.id}')">🗑</button>`:''}
         </td>
       </tr>`;
@@ -996,6 +1034,46 @@ window.openVehDetail = function(id) {
 };
 
 // ---- KM MODAL ----
+window.openKmCorrection = function(id) {
+  if (!isAdmin()) { toast('❌ Réservé aux administrateurs'); return; }
+  const v = allVehicles.find(x=>x.id===id);
+  if (!v) return;
+  kmModalVeh = v;
+  document.getElementById('km-corr-info').innerHTML = `
+    <strong>${v.marque||''} ${v.modele||''} (${v.immat||''})</strong><br>
+    Index actuel : <strong>${fmt(v.km)} km</strong><br>
+    <span style="font-size:11px">Corrigez uniquement si l'index enregistré est erroné.</span>`;
+  document.getElementById('km-corr-val').value = '';
+  document.getElementById('km-corr-motif').value = '';
+  document.getElementById('km-corr-obs').value = '';
+  openModal('modal-km-correction');
+};
+
+window.saveKmCorrection = async function() {
+  if (!isAdmin()) { toast('❌ Non autorisé'); return; }
+  if (!kmModalVeh) return;
+  const val = parseInt(document.getElementById('km-corr-val').value);
+  const motif = document.getElementById('km-corr-motif').value;
+  const obs = document.getElementById('km-corr-obs').value.trim();
+  if (!val || val <= 0) { toast('❌ Index corrigé invalide'); return; }
+  if (!motif) { toast('❌ Motif de correction obligatoire'); return; }
+  if (!confirm(`Confirmer la correction : ${fmt(kmModalVeh.km)} km → ${fmt(val)} km ?\nMotif : ${motif}`)) return;
+  const oldKm = kmModalVeh.km;
+  try {
+    await updateDoc(doc(db,'vehicules',kmModalVeh.id), { km: val });
+    await addDoc(collection(db,'historique'), {
+      vehiculeId: kmModalVeh.id,
+      type: 'correction_km',
+      oldKm, newKm: val,
+      motif, obs,
+      auteur: (currentUserData.prenom+' '+currentUserData.nom).trim(),
+      timestamp: serverTimestamp()
+    });
+    closeModal('modal-km-correction');
+    toast('✅ Index corrigé : '+fmt(oldKm)+' km → '+fmt(val)+' km');
+  } catch(e) { toast('❌ Erreur : '+e.message); }
+};
+
 window.openKmModal = function(id) {
   const v = allVehicles.find(x=>x.id===id);
   if (!v) return;
@@ -1266,12 +1344,18 @@ function renderHistory() {
   if (hist.length === 0) {
     document.getElementById('hist-list').innerHTML = '<div class="empty"><div class="empty-icon">📋</div>Aucun historique.</div>'; return;
   }
-  const icons = { km:'📏', modif_vehicule:'✏️', ajout_vehicule:'🚗', suppression_vehicule:'🗑', entretien:'🔧', connexion:'🔐' };
+  const icons = { km:'📏', correction_km:'⚠️', modif_vehicule:'✏️', ajout_vehicule:'🚗', suppression_vehicule:'🗑', entretien:'🔧', connexion:'🔐' };
   document.getElementById('hist-list').innerHTML = hist.slice(0,50).map(h => `
     <div class="hist-item">
       <div class="hist-dot"></div>
       <div class="hist-info">
-        <span>${icons[h.type]||'📝'} ${h.detail||h.type||'Action'}</span>
+        <span>${icons[h.type]||'📝'} ${
+          h.type==='correction_km'
+            ? `Correction index : ${fmt(h.oldKm)} → ${fmt(h.newKm)} km — Motif : ${h.motif||'?'}${h.obs?' ('+h.obs+')':''}`
+            : h.type==='km'
+            ? `Mise à jour kilométrage : ${fmt(h.oldKm)} → ${fmt(h.newKm)} km`
+            : h.detail||h.type||'Action'
+        }</span>
         <div class="hist-date">${fmtDate(h.timestamp)} — ${h.auteur||'Système'}</div>
       </div>
     </div>`).join('');

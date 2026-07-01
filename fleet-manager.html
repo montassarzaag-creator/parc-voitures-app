@@ -585,7 +585,7 @@ tr:hover td{background:var(--surface)}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged, browserSessionPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -602,14 +602,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Session par onglet : chaque onglet maintient sa propre session indépendante
-// Ainsi admin dans un onglet, utilisateur standard dans un autre — sans interférence
-await setPersistence(auth, browserSessionPersistence);
-
 // Seconde instance Firebase isolée pour créer des comptes sans déconnecter l'admin
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 const secondaryAuth = getAuth(secondaryApp);
-await setPersistence(secondaryAuth, browserSessionPersistence);
 
 // ---- STATE ----
 let currentUser = null;
@@ -686,16 +681,29 @@ window.doLogin = async function() {
   if (!email || !pw) { err.textContent = 'Email et mot de passe requis.'; return; }
   try {
     await signInWithEmailAndPassword(auth, email, pw);
+    // Stocker dans sessionStorage (propre à chaque onglet) pour reconnexion automatique si besoin
+    sessionStorage.setItem('fm_email', email);
+    sessionStorage.setItem('fm_pw', pw);
   } catch(e) {
     err.textContent = 'Email ou mot de passe incorrect.';
   }
 };
 
 window.doLogout = async function() {
+  sessionStorage.removeItem('fm_email');
+  sessionStorage.removeItem('fm_pw');
   await signOut(auth);
 };
 
+// Reconnexion automatique par onglet si Firebase perd la session (tab switching)
 onAuthStateChanged(auth, async user => {
+  if (!user) {
+    const savedEmail = sessionStorage.getItem('fm_email');
+    const savedPw = sessionStorage.getItem('fm_pw');
+    if (savedEmail && savedPw) {
+      try { await signInWithEmailAndPassword(auth, savedEmail, savedPw); return; } catch(e) {}
+    }
+  }
   if (user) {
     currentUser = user;
     // Charger le profil utilisateur

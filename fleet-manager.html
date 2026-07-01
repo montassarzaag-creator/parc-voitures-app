@@ -585,7 +585,7 @@ tr:hover td{background:var(--surface)}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged, browserSessionPersistence, setPersistence } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -602,10 +602,14 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Seconde instance Firebase isolée, utilisée uniquement pour créer des comptes utilisateurs
-// sans déconnecter la session de l'admin en cours (createUserWithEmailAndPassword connecte sinon automatiquement le nouveau compte)
+// Session par onglet : chaque onglet maintient sa propre session indépendante
+// Ainsi admin dans un onglet, utilisateur standard dans un autre — sans interférence
+await setPersistence(auth, browserSessionPersistence);
+
+// Seconde instance Firebase isolée pour créer des comptes sans déconnecter l'admin
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 const secondaryAuth = getAuth(secondaryApp);
+await setPersistence(secondaryAuth, browserSessionPersistence);
 
 // ---- STATE ----
 let currentUser = null;

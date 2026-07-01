@@ -1013,17 +1013,25 @@ window.saveKm = async function() {
   if (!val || val <= kmModalVeh.km) {
     toast('❌ La valeur doit être supérieure à '+fmt(kmModalVeh.km)+' km'); return;
   }
+  const oldKm = kmModalVeh.km;
+  // Étape 1 : mise à jour du kilométrage
   try {
-    const oldKm = kmModalVeh.km;
     await updateDoc(doc(db,'vehicules',kmModalVeh.id), { km: val });
+  } catch(e) {
+    toast('❌ Erreur vehicules : '+e.message); return;
+  }
+  // Étape 2 : enregistrement dans l'historique
+  try {
     await addDoc(collection(db,'historique'), {
       vehiculeId: kmModalVeh.id, type:'km', oldKm, newKm: val,
-      auteur: currentUserData.prenom+' '+currentUserData.nom,
+      auteur: (currentUserData.prenom+' '+currentUserData.nom).trim(),
       timestamp: serverTimestamp()
     });
-    closeModal('modal-km');
-    toast('✅ Kilométrage mis à jour : '+fmt(val)+' km');
-  } catch(e) { toast('❌ Erreur : '+e.message); }
+  } catch(e) {
+    toast('❌ Erreur historique : '+e.message); return;
+  }
+  closeModal('modal-km');
+  toast('✅ Kilométrage mis à jour : '+fmt(val)+' km');
 };
 
 // ---- VEHICLE CRUD ----

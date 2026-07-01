@@ -599,11 +599,16 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Seconde instance Firebase isolée pour créer des comptes sans déconnecter l'admin
-const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+// Instance Auth unique par onglet — permet plusieurs comptes simultanément
+// chaque onglet a son propre contexte d'authentification indépendant
+const tabId = 'tab_' + Math.random().toString(36).slice(2);
+const tabApp = initializeApp(firebaseConfig, tabId);
+const auth = getAuth(tabApp);
+
+// Seconde instance pour créer des comptes sans déconnecter l'utilisateur courant
+const secondaryApp = initializeApp(firebaseConfig, tabId+'_secondary');
 const secondaryAuth = getAuth(secondaryApp);
 
 // ---- STATE ----
@@ -681,29 +686,16 @@ window.doLogin = async function() {
   if (!email || !pw) { err.textContent = 'Email et mot de passe requis.'; return; }
   try {
     await signInWithEmailAndPassword(auth, email, pw);
-    // Stocker dans sessionStorage (propre à chaque onglet) pour reconnexion automatique si besoin
-    sessionStorage.setItem('fm_email', email);
-    sessionStorage.setItem('fm_pw', pw);
   } catch(e) {
     err.textContent = 'Email ou mot de passe incorrect.';
   }
 };
 
 window.doLogout = async function() {
-  sessionStorage.removeItem('fm_email');
-  sessionStorage.removeItem('fm_pw');
   await signOut(auth);
 };
 
-// Reconnexion automatique par onglet si Firebase perd la session (tab switching)
 onAuthStateChanged(auth, async user => {
-  if (!user) {
-    const savedEmail = sessionStorage.getItem('fm_email');
-    const savedPw = sessionStorage.getItem('fm_pw');
-    if (savedEmail && savedPw) {
-      try { await signInWithEmailAndPassword(auth, savedEmail, savedPw); return; } catch(e) {}
-    }
-  }
   if (user) {
     currentUser = user;
     // Charger le profil utilisateur

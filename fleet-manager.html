@@ -446,6 +446,7 @@ tr:hover td{background:var(--surface)}
       <div class="form-group"><label>Immatriculation *</label><input type="text" id="veh-immat" placeholder="AB 1234 CD"></div>
       <div class="form-group"><label>N° de série (VIN)</label><input type="text" id="veh-vin" placeholder="VF1..."></div>
       <div class="form-group"><label>Kilométrage actuel *</label><input type="number" id="veh-km" placeholder="45000"></div>
+      <div id="veh-km-warning" style="display:none;font-size:11px;color:var(--orange);padding:6px 8px;background:var(--orange-lt);border-radius:6px;margin-top:-8px;grid-column:1/-1">⚠️ Pour corriger le kilométrage d'un véhicule existant, utilisez le bouton <strong>⚠️</strong> dans la liste des véhicules (avec motif obligatoire).</div>
       <div class="form-group"><label>Fréquence entretien (km) *</label><input type="number" id="veh-freq" placeholder="10000"></div>
       <div class="form-group"><label>Dernier entretien (km)</label><input type="number" id="veh-last-km" placeholder="40000"></div>
       <div class="form-group full">
@@ -1161,7 +1162,9 @@ window.saveVehicle = async function() {
   if (!data.marque||!data.modele||!data.immat||!data.societeId) { toast('❌ Champs obligatoires manquants'); return; }
   try {
     if (id) {
-      await updateDoc(doc(db,'vehicules',id), data);
+      // En modification, on ne touche JAMAIS au kilométrage (utiliser ⚠️ pour corriger)
+      const { km, ...dataWithoutKm } = data;
+      await updateDoc(doc(db,'vehicules',id), dataWithoutKm);
       await addDoc(collection(db,'historique'), { type:'modif_vehicule', vehiculeId:id, auteur:currentUserData.prenom+' '+currentUserData.nom, detail:'Modification véhicule '+data.immat, timestamp:serverTimestamp() });
       toast('✅ Véhicule modifié');
     } else {
@@ -1186,6 +1189,10 @@ window.editVehicle = function(id) {
   document.getElementById('veh-immat').value = v.immat||'';
   document.getElementById('veh-vin').value = v.vin||'';
   document.getElementById('veh-km').value = v.km||'';
+  document.getElementById('veh-km').readOnly = true;
+  document.getElementById('veh-km').style.background = 'var(--surface)';
+  document.getElementById('veh-km').style.color = 'var(--text2)';
+  document.getElementById('veh-km-warning').style.display = 'block';
   document.getElementById('veh-freq').value = v.freq||10000;
   document.getElementById('veh-last-km').value = v.lastKm||'';
   renderOwnersCheckboxes(v.ownerIds||[]);
@@ -1545,6 +1552,10 @@ window.openModal = function(id, skipReset) {
     document.getElementById('veh-edit-id').value = '';
     ['veh-marque','veh-modele','veh-immat','veh-vin','veh-service'].forEach(f=>document.getElementById(f).value='');
     ['veh-km','veh-freq','veh-last-km'].forEach(f=>document.getElementById(f).value='');
+    document.getElementById('veh-km').readOnly = false;
+    document.getElementById('veh-km').style.background = '';
+    document.getElementById('veh-km').style.color = '';
+    document.getElementById('veh-km-warning').style.display = 'none';
     ['veh-date-circ','veh-ins-exp','veh-vt-exp'].forEach(f=>document.getElementById(f).value='');
     renderOwnersCheckboxes([]);
   }

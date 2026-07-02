@@ -1287,8 +1287,13 @@ function renderMaint() {
         <div style="width:36px;height:36px;border-radius:8px;background:var(--blue-lt);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔧</div>
         <div style="flex:1">
           <div style="font-size:14px;font-weight:600">${group.name}</div>
-          <div style="font-size:12px;color:var(--text2)">${group.items.length} entretien(s) — Total : ${fmt(totalCout)} FCFA</div>
+          <div style="font-size:12px;color:var(--text2)">${group.items.length} entretien(s)</div>
         </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:15px;font-weight:700;color:var(--blue)">${fmt(totalCout)} FCFA</div>
+          <div style="font-size:10px;color:var(--text2)">Total dépensé</div>
+        </div>
+        <button class="btn sm" onclick="event.stopPropagation();printMaint('${vehId}')" title="Imprimer les entretiens" style="flex-shrink:0">🖨️</button>
         <button class="btn sm primary" onclick="event.stopPropagation();openMaintForVehicle('${vehId}')" style="flex-shrink:0">+ Ajouter</button>
         <span style="font-size:18px;color:var(--text2);transition:transform .2s" id="arrow-${vehId}">${isOpen?'▲':'▼'}</span>
       </div>
@@ -1335,6 +1340,100 @@ window.toggleAccordion = function(id) {
   const open = el.style.display !== 'none';
   el.style.display = open ? 'none' : 'block';
   if (arrow) arrow.textContent = open ? '▼' : '▲';
+};
+
+window.printMaint = function(vehId) {
+  const v = allVehicles.find(x=>x.id===vehId);
+  const maints = allMaint.filter(m=>m.vehiculeId===vehId).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const soc = allSocietes.find(x=>x.id===v?.societeId);
+  const totalCout = maints.reduce((s,m)=>s+(m.cout||0),0);
+
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html lang="fr"><head>
+    <meta charset="UTF-8">
+    <title>Historique entretiens — ${v?.marque||''} ${v?.modele||''} (${v?.immat||''})</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:20px}
+      .header{border-bottom:2px solid #185FA5;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start}
+      .logo{font-size:18px;font-weight:700;color:#185FA5}
+      .logo-sub{font-size:11px;color:#666}
+      .veh-title{font-size:16px;font-weight:700;margin-bottom:4px}
+      .veh-info{font-size:11px;color:#555;display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px}
+      .veh-info span{display:flex;gap:4px}
+      .total-box{background:#E6F1FB;border:1px solid #185FA5;border-radius:6px;padding:8px 14px;text-align:right;margin-bottom:16px}
+      .total-label{font-size:11px;color:#555}
+      .total-val{font-size:18px;font-weight:700;color:#185FA5}
+      table{width:100%;border-collapse:collapse;margin-bottom:20px}
+      th{background:#0F1F3D;color:#fff;padding:7px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+      td{padding:7px 8px;border-bottom:1px solid #e0dfd8;vertical-align:top}
+      tr:nth-child(even) td{background:#f8f7f4}
+      .type{font-weight:600}
+      .pieces{font-size:11px;color:#555}
+      .obs{font-size:11px;color:#777;font-style:italic}
+      .footer{border-top:1px solid #ddd;padding-top:10px;font-size:10px;color:#888;display:flex;justify-content:space-between}
+      @media print{body{padding:10px}.no-print{display:none}}
+    </style>
+  </head><body>
+    <div class="header">
+      <div>
+        <div class="logo">🚗 FleetManager</div>
+        <div class="logo-sub">Gestion Parc Automobile</div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#555">
+        Imprimé le ${new Date().toLocaleDateString('fr-FR')}<br>
+        ${soc?.nom||''}
+      </div>
+    </div>
+
+    <div class="veh-title">Historique des entretiens — ${v?.marque||''} ${v?.modele||''}</div>
+    <div class="veh-info">
+      <span>🔖 <strong>Immatriculation :</strong> ${v?.immat||'—'}</span>
+      <span>🏢 <strong>Société :</strong> ${soc?.nom||'—'}</span>
+      <span>👤 <strong>Utilisateur :</strong> ${v?.owner||'—'}</span>
+      <span>📍 <strong>Kilométrage actuel :</strong> ${fmt(v?.km)} km</span>
+    </div>
+
+    <div class="total-box">
+      <div class="total-label">Total dépensé en entretiens</div>
+      <div class="total-val">${fmt(totalCout)} FCFA</div>
+      <div class="total-label">${maints.length} intervention(s) enregistrée(s)</div>
+    </div>
+
+    <table>
+      <thead><tr>
+        <th>Type d'entretien</th>
+        <th>Date</th>
+        <th>Kilométrage</th>
+        <th>Prestataire</th>
+        <th>Coût (FCFA)</th>
+        <th>Pièces remplacées / Observations</th>
+      </tr></thead>
+      <tbody>
+        ${maints.map(m=>`<tr>
+          <td class="type">${m.type||'—'}</td>
+          <td>${m.date||'—'}</td>
+          <td>${fmt(m.km)} km</td>
+          <td>${m.presta||'—'}</td>
+          <td style="text-align:right;font-weight:500">${m.cout?fmt(m.cout):'—'}</td>
+          <td><div class="pieces">${m.pieces||''}</div>${m.obs?`<div class="obs">${m.obs}</div>`:''}</td>
+        </tr>`).join('')}
+        <tr style="background:#E6F1FB;font-weight:700">
+          <td colspan="4" style="text-align:right;font-weight:700">TOTAL</td>
+          <td style="text-align:right;color:#185FA5;font-size:14px">${fmt(totalCout)}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer">
+      <span>FleetManager — Document généré automatiquement</span>
+      <span>${soc?.nom||''} — ${new Date().toLocaleDateString('fr-FR')}</span>
+    </div>
+
+    <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  w.document.close();
 };
 
 window.filterMaint = renderMaint;

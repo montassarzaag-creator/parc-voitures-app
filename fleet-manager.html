@@ -1257,10 +1257,17 @@ function renderMaint() {
   let maints = allMaint;
   if (search) maints = maints.filter(m => (m.vehicule+m.type+(m.presta||'')).toLowerCase().includes(search));
 
-  if (!isAdmin()) maints = maints.filter(m => {
-    const v = allVehicles.find(x=>x.id===m.vehiculeId);
-    return v && v.societeId === currentUserData.societeId;
-  });
+  if (currentUserData.role === 'user') {
+    // Utilisateur standard : uniquement les entretiens de ses véhicules attribués
+    const myVehIds = filteredVehicles().map(v=>v.id);
+    maints = maints.filter(m => myVehIds.includes(m.vehiculeId));
+  } else if (!isAdmin()) {
+    // Admin société : véhicules de sa société
+    maints = maints.filter(m => {
+      const v = allVehicles.find(x=>x.id===m.vehiculeId);
+      return v && v.societeId === currentUserData.societeId;
+    });
+  }
 
   if (maints.length === 0) {
     document.getElementById('maint-table-wrap').innerHTML = '<div class="empty"><div class="empty-icon">🔧</div>Aucun entretien enregistré.</div>'; return;
@@ -1540,11 +1547,19 @@ function renderHistory() {
   const search = (document.getElementById('hist-search')?.value||'').toLowerCase();
   let hist = allHistory;
   if (search) hist = hist.filter(h => (h.detail+h.auteur||'').toLowerCase().includes(search));
-  if (!isAdmin()) hist = hist.filter(h => {
-    if (!h.vehiculeId) return false;
-    const v = allVehicles.find(x=>x.id===h.vehiculeId);
-    return v && v.societeId === currentUserData.societeId;
-  });
+
+  if (currentUserData.role === 'user') {
+    // Utilisateur standard : uniquement l'historique de ses véhicules attribués
+    const myVehIds = filteredVehicles().map(v=>v.id);
+    hist = hist.filter(h => h.vehiculeId && myVehIds.includes(h.vehiculeId));
+  } else if (!isAdmin()) {
+    // Admin société : véhicules de sa société
+    hist = hist.filter(h => {
+      if (!h.vehiculeId) return false;
+      const v = allVehicles.find(x=>x.id===h.vehiculeId);
+      return v && v.societeId === currentUserData.societeId;
+    });
+  }
 
   if (hist.length === 0) {
     document.getElementById('hist-list').innerHTML = '<div class="empty"><div class="empty-icon">📋</div>Aucun historique.</div>'; return;

@@ -1255,7 +1255,7 @@ window.deleteVehicle = async function(id) {
 function renderMaint() {
   const search = (document.getElementById('maint-search')?.value||'').toLowerCase();
   let maints = allMaint;
-  if (search) maints = maints.filter(m => (m.vehicule+m.type+m.presta||'').toLowerCase().includes(search));
+  if (search) maints = maints.filter(m => (m.vehicule+m.type+(m.presta||'')).toLowerCase().includes(search));
 
   if (!isAdmin()) maints = maints.filter(m => {
     const v = allVehicles.find(x=>x.id===m.vehiculeId);
@@ -1265,18 +1265,78 @@ function renderMaint() {
   if (maints.length === 0) {
     document.getElementById('maint-table-wrap').innerHTML = '<div class="empty"><div class="empty-icon">🔧</div>Aucun entretien enregistré.</div>'; return;
   }
-  document.getElementById('maint-table-wrap').innerHTML = `
-    <table><thead><tr><th>Véhicule</th><th>Type</th><th>Date</th><th>Kilométrage</th><th>Prestataire</th><th>Coût</th><th>Actions</th></tr></thead>
-    <tbody>${maints.map(m => `<tr>
-      <td>${m.vehicule||'—'}</td><td>${m.type||'—'}</td><td>${m.date||'—'}</td>
-      <td>${fmt(m.km)} km</td><td>${m.presta||'—'}</td>
-      <td>${m.cout?fmt(m.cout)+' FCFA':'—'}</td>
-      <td style="display:flex;gap:4px">
-        ${isAdminOrSoc()?`<button class="btn sm" onclick="openEditMaint('${m.id}')">✏️</button>`:''}
-        ${isAdmin()?`<button class="btn sm danger" onclick="deleteMaint('${m.id}')">🗑</button>`:''}
-      </td>
-    </tr>`).join('')}</tbody></table>`;
+
+  // Regrouper par véhicule
+  const byVehicle = {};
+  maints.forEach(m => {
+    const key = m.vehiculeId || 'inconnu';
+    if (!byVehicle[key]) byVehicle[key] = { name: m.vehicule||'Véhicule inconnu', items: [] };
+    byVehicle[key].items.push(m);
+  });
+
+  // Trier chaque groupe par date décroissante
+  Object.values(byVehicle).forEach(g => g.items.sort((a,b)=>(b.date||'').localeCompare(a.date||'')));
+
+  const html = Object.entries(byVehicle).map(([vehId, group], idx) => {
+    const v = allVehicles.find(x=>x.id===vehId);
+    const totalCout = group.items.reduce((s,m)=>s+(m.cout||0),0);
+    const isOpen = idx === 0; // Premier accordéon ouvert par défaut
+    return `
+    <div class="maint-accordion" style="margin-bottom:10px;border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <div class="maint-acc-header" onclick="toggleAccordion('acc-${vehId}')" style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;background:var(--surface);user-select:none">
+        <div style="width:36px;height:36px;border-radius:8px;background:var(--blue-lt);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔧</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">${group.name}</div>
+          <div style="font-size:12px;color:var(--text2)">${group.items.length} entretien(s) — Total : ${fmt(totalCout)} FCFA</div>
+        </div>
+        <button class="btn sm primary" onclick="event.stopPropagation();openMaintForVehicle('${vehId}')" style="flex-shrink:0">+ Ajouter</button>
+        <span style="font-size:18px;color:var(--text2);transition:transform .2s" id="arrow-${vehId}">${isOpen?'▲':'▼'}</span>
+      </div>
+      <div id="acc-${vehId}" style="display:${isOpen?'block':'none'}">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:var(--surface)">
+            <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase">Type</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase">Date</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase">Kilométrage</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase">Prestataire</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase">Coût</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase">Pièces</th>
+            <th style="padding:8px 10px"></th>
+          </tr></thead>
+          <tbody>
+          ${group.items.map(m=>`
+            <tr style="border-top:1px solid var(--border)">
+              <td style="padding:10px 16px;font-weight:500">${m.type||'—'}</td>
+              <td style="padding:10px">${m.date||'—'}</td>
+              <td style="padding:10px">${fmt(m.km)} km</td>
+              <td style="padding:10px">${m.presta||'—'}</td>
+              <td style="padding:10px">${m.cout?fmt(m.cout)+' FCFA':'—'}</td>
+              <td style="padding:10px;font-size:12px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.pieces||''}">${m.pieces||'—'}</td>
+              <td style="padding:10px;white-space:nowrap;display:flex;gap:4px">
+                ${isAdminOrSoc()?`<button class="btn sm" onclick="openEditMaint('${m.id}')">✏️</button>`:''}
+                ${isAdmin()?`<button class="btn sm danger" onclick="deleteMaint('${m.id}')">🗑</button>`:''}
+              </td>
+            </tr>
+            ${m.obs?`<tr style="border-top:none"><td colspan="7" style="padding:4px 16px 10px;font-size:12px;color:var(--text2)">📝 ${m.obs}</td></tr>`:''}`
+          ).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('maint-table-wrap').innerHTML = html;
 }
+
+window.toggleAccordion = function(id) {
+  const el = document.getElementById(id);
+  const vehId = id.replace('acc-','');
+  const arrow = document.getElementById('arrow-'+vehId);
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (arrow) arrow.textContent = open ? '▼' : '▲';
+};
+
 window.filterMaint = renderMaint;
 
 window.saveMaint = async function() {
@@ -1581,11 +1641,16 @@ window.openModal = function(id, skipReset) {
     const mv = document.getElementById('maint-veh');
     if (mv) {
       mv.innerHTML = allVehicles.map(v=>`<option value="${v.id}">${v.marque||''} ${v.modele||''} — ${v.immat||''}</option>`).join('');
-      // Pré-remplir km du premier véhicule et la date du jour
       const firstVeh = allVehicles[0];
       if (firstVeh) document.getElementById('maint-km').value = firstVeh.km || '';
-      document.getElementById('maint-date').value = new Date().toISOString().split('T')[0];
     }
+    // Reset complet de tous les champs
+    document.getElementById('maint-type').value = 'Vidange moteur';
+    document.getElementById('maint-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('maint-presta').value = '';
+    document.getElementById('maint-cout').value = '';
+    document.getElementById('maint-pieces').value = '';
+    document.getElementById('maint-obs').value = '';
   }
   if (id==='modal-add-societe') {
     document.getElementById('soc-modal-title').textContent = 'Ajouter une société';

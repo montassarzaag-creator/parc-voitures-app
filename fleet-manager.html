@@ -1950,9 +1950,10 @@ function renderMobileHistory() {
   const myVehIds = myVehs.map(v=>v.id);
 
   // Entretiens préventifs des véhicules de l'utilisateur
+  // Les anciens entretiens sans champ 'categorie' sont traités comme préventifs par défaut
   const myMaints = allMaint.filter(m =>
     myVehIds.includes(m.vehiculeId) &&
-    (m.categorie === 'preventif' || !m.categorie)
+    m.categorie !== 'curatif'
   ).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
   if (myMaints.length === 0 && allHistory.filter(h=>h.vehiculeId && myVehIds.includes(h.vehiculeId)).length === 0) {

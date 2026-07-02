@@ -476,7 +476,7 @@ tr:hover td{background:var(--surface)}
   <div class="modal">
     <div class="modal-hdr"><h3>Enregistrer un entretien</h3><button class="close-btn" onclick="closeModal('modal-add-maint')">×</button></div>
     <div class="form-grid">
-      <div class="form-group full"><label>Véhicule *</label><select id="maint-veh"></select></div>
+      <div class="form-group full"><label>Véhicule *</label><select id="maint-veh" onchange="onMaintVehChange()"></select></div>
       <div class="form-group"><label>Type d'entretien *</label>
         <select id="maint-type">
           <option>Vidange moteur</option><option>Remplacement filtres</option>
@@ -485,7 +485,7 @@ tr:hover td{background:var(--surface)}
         </select>
       </div>
       <div class="form-group"><label>Date *</label><input type="date" id="maint-date"></div>
-      <div class="form-group"><label>Kilométrage *</label><input type="number" id="maint-km" placeholder="87500"></div>
+      <div class="form-group"><label>Kilométrage *</label><input type="number" id="maint-km" placeholder="Km au moment de l'entretien" inputmode="numeric" min="0"></div>
       <div class="form-group"><label>Prestataire</label><input type="text" id="maint-presta" placeholder="Garage Central"></div>
       <div class="form-group"><label>Coût (FCFA)</label><input type="number" id="maint-cout" placeholder="150000"></div>
       <div class="form-group full"><label>Pièces remplacées</label><textarea id="maint-pieces" style="width:100%;min-height:60px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px" placeholder="Filtre à huile, huile 5L…"></textarea></div>
@@ -1030,7 +1030,7 @@ window.openVehDetail = function(id) {
     </div>
     <div style="display:flex;gap:8px;margin-bottom:14px">
       <button class="btn primary" onclick="closeModal('modal-veh-detail');openKmModal('${v.id}')">📏 Mettre à jour le kilométrage</button>
-      <button class="btn" onclick="closeModal('modal-veh-detail');document.querySelector('[data-page=maintenance]').click();setTimeout(()=>openModal('modal-add-maint'),100)">🔧 Ajouter entretien</button>
+      <button class="btn" onclick="closeModal('modal-veh-detail');openMaintForVehicle('${v.id}')">🔧 Ajouter entretien</button>
     </div>
     <div>
       <div style="font-size:13px;font-weight:600;margin-bottom:8px">Historique kilométrique</div>
@@ -1041,6 +1041,37 @@ window.openVehDetail = function(id) {
 };
 
 // ---- KM MODAL ----
+window.openMaintForVehicle = function(vehId) {
+  // Naviguer vers la page Entretiens
+  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelector('.nav-item[data-page="maintenance"]').classList.add('active');
+  document.getElementById('page-maintenance').classList.add('active');
+  document.getElementById('page-title').textContent = 'Entretiens préventifs';
+  renderMaint();
+  // Ouvrir le modal avec le véhicule pré-sélectionné et le km pré-rempli
+  setTimeout(() => {
+    const mv = document.getElementById('maint-veh');
+    if (mv) {
+      mv.innerHTML = allVehicles.map(v=>`<option value="${v.id}" ${v.id===vehId?'selected':''}>${v.marque||''} ${v.modele||''} — ${v.immat||''}</option>`).join('');
+      // Pré-remplir le kilométrage avec la valeur actuelle du véhicule
+      const veh = allVehicles.find(x=>x.id===vehId);
+      if (veh) {
+        document.getElementById('maint-km').value = veh.km || '';
+        document.getElementById('maint-date').value = new Date().toISOString().split('T')[0];
+      }
+    }
+    openModal('modal-add-maint', true);
+  }, 50);
+};
+
+// Mettre à jour le km quand l'utilisateur change le véhicule dans le formulaire
+function onMaintVehChange() {
+  const vehId = document.getElementById('maint-veh').value;
+  const veh = allVehicles.find(x=>x.id===vehId);
+  if (veh) document.getElementById('maint-km').value = veh.km || '';
+}
+
 window.openKmCorrection = function(id) {
   if (!isAdmin()) { toast('❌ Réservé aux administrateurs'); return; }
   const v = allVehicles.find(x=>x.id===id);
@@ -1548,7 +1579,13 @@ window.openModal = function(id, skipReset) {
   // Reset maint-veh quand on ouvre modal entretien
   if (id==='modal-add-maint') {
     const mv = document.getElementById('maint-veh');
-    if (mv) mv.innerHTML = allVehicles.map(v=>`<option value="${v.id}">${v.marque||''} ${v.modele||''} — ${v.immat||''}</option>`).join('');
+    if (mv) {
+      mv.innerHTML = allVehicles.map(v=>`<option value="${v.id}">${v.marque||''} ${v.modele||''} — ${v.immat||''}</option>`).join('');
+      // Pré-remplir km du premier véhicule et la date du jour
+      const firstVeh = allVehicles[0];
+      if (firstVeh) document.getElementById('maint-km').value = firstVeh.km || '';
+      document.getElementById('maint-date').value = new Date().toISOString().split('T')[0];
+    }
   }
   if (id==='modal-add-societe') {
     document.getElementById('soc-modal-title').textContent = 'Ajouter une société';

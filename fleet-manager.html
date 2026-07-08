@@ -281,6 +281,7 @@ tr:hover td{background:var(--surface)}
         <div class="user-name" id="user-name">Chargement…</div>
         <div class="user-role" id="user-role"></div>
       </div>
+      <button class="logout-btn" onclick="openModal('modal-change-pw')" title="Changer mon mot de passe" style="font-size:14px">🔑</button>
       <button class="logout-btn" onclick="doLogout()" title="Déconnexion">↩</button>
     </div>
   </aside>
@@ -411,6 +412,7 @@ tr:hover td{background:var(--surface)}
       <div class="m-header-name" id="m-user-name">—</div>
     </div>
     <button class="m-logout" onclick="refreshMobile()" title="Rafraîchir" id="refresh-btn" style="font-size:22px;color:#fff;opacity:.9">↻</button>
+    <button class="m-logout" onclick="openModal('modal-change-pw')" title="Changer mot de passe" style="font-size:18px">🔑</button>
     <button class="m-logout" onclick="doLogout()" title="Déconnexion" style="font-size:20px">↩</button>
   </div>
   <div class="m-banner" id="m-banner"></div>
@@ -660,9 +662,23 @@ tr:hover td{background:var(--surface)}
 
 <div id="toast"></div>
 
+<!-- Modal changement mot de passe -->
+<div class="modal-bg" id="modal-change-pw">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-hdr"><h3>🔑 Changer mon mot de passe</h3><button class="close-btn" onclick="closeModal('modal-change-pw')">×</button></div>
+    <div class="form-group"><label>Mot de passe actuel *</label><input type="password" id="pw-current" placeholder="Votre mot de passe actuel"></div>
+    <div class="form-group"><label>Nouveau mot de passe *</label><input type="password" id="pw-new" placeholder="Minimum 6 caractères"></div>
+    <div class="form-group"><label>Confirmer le nouveau mot de passe *</label><input type="password" id="pw-confirm" placeholder="Répétez le nouveau mot de passe"></div>
+    <div class="form-actions">
+      <button class="btn" onclick="closeModal('modal-change-pw')">Annuler</button>
+      <button class="btn primary" onclick="changePassword()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1666,7 +1682,10 @@ function renderUsers() {
         <td style="font-size:12px">${u.email||'—'}</td>
         <td>${soc?soc.nom:'—'}</td>
         <td><span class="badge ${u.role==='admin'?'blue':u.role==='admin_societe'?'green':'gray'}">${roleLabels[u.role]||u.role}</span></td>
-        <td><button class="btn sm danger" onclick="deleteUser('${u.id}')">🗑</button></td>
+        <td style="display:flex;gap:4px">
+          <button class="btn sm" onclick="sendResetEmail('${u.email}')" title="Envoyer lien de réinitialisation" style="background:var(--blue-lt);color:var(--blue);border-color:var(--blue)">📧</button>
+          <button class="btn sm danger" onclick="deleteUser('${u.id}')">🗑</button>
+        </td>
       </tr>`;
     }).join('')}</tbody></table>`;
 }
@@ -1692,6 +1711,41 @@ window.createUser = async function() {
     closeModal('modal-add-user');
     toast('✅ Utilisateur créé : '+email+' — rôle : '+role);
   } catch(e) { toast('❌ Erreur : '+e.message); }
+};
+
+window.sendResetEmail = async function(email) {
+  if (!email) { toast('❌ Email introuvable'); return; }
+  if (!confirm(`Envoyer un lien de réinitialisation à ${email} ?`)) return;
+  try {
+    await sendPasswordResetEmail(auth, email);
+    toast(`✅ Lien envoyé à ${email}`);
+  } catch(e) { toast('❌ Erreur : '+e.message); }
+};
+
+window.changePassword = async function() {
+  const current = document.getElementById('pw-current').value;
+  const newPw = document.getElementById('pw-new').value;
+  const confirm2 = document.getElementById('pw-confirm').value;
+  if (!current || !newPw || !confirm2) { toast('❌ Tous les champs sont obligatoires'); return; }
+  if (newPw.length < 6) { toast('❌ Le nouveau mot de passe doit faire au moins 6 caractères'); return; }
+  if (newPw !== confirm2) { toast('❌ Les deux mots de passe ne correspondent pas'); return; }
+  try {
+    // Réauthentification obligatoire avant changement de mot de passe
+    const credential = EmailAuthProvider.credential(currentUser.email, current);
+    await reauthenticateWithCredential(currentUser, credential);
+    await updatePassword(currentUser, newPw);
+    closeModal('modal-change-pw');
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-confirm').value = '';
+    toast('✅ Mot de passe changé avec succès');
+  } catch(e) {
+    if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
+      toast('❌ Mot de passe actuel incorrect');
+    } else {
+      toast('❌ Erreur : '+e.message);
+    }
+  }
 };
 
 window.deleteUser = async function(id) {

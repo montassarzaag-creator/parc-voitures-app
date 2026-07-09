@@ -247,6 +247,9 @@ tr:hover td{background:var(--surface)}
     <div class="form-group"><label>Mot de passe</label><input type="password" id="login-password" placeholder="••••••••"></div>
     <button class="btn-primary" onclick="doLogin()">Se connecter</button>
     <div class="auth-error" id="auth-error"></div>
+    <div style="text-align:center;margin-top:12px">
+      <button onclick="forgotPassword()" style="background:none;border:none;color:var(--blue);font-size:13px;cursor:pointer;text-decoration:underline">Mot de passe oublié ?</button>
+    </div>
   </div>
 </div>
 
@@ -766,6 +769,24 @@ function isAdmin() { return currentUserData && (currentUserData.role === 'admin'
 function isAdminOrSoc() { return currentUserData && ['admin','admin_societe'].includes(currentUserData.role); }
 
 // ---- AUTH ----
+window.forgotPassword = async function() {
+  const email = document.getElementById('login-email').value.trim();
+  const err = document.getElementById('auth-error');
+  if (!email) {
+    err.style.color = 'var(--orange)';
+    err.textContent = 'Entrez votre email ci-dessus puis cliquez "Mot de passe oublié".';
+    return;
+  }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    err.style.color = 'var(--green)';
+    err.textContent = '✅ Email de réinitialisation envoyé à ' + email;
+  } catch(e) {
+    err.style.color = 'var(--red)';
+    err.textContent = '❌ Email introuvable ou invalide.';
+  }
+};
+
 window.doLogin = async function() {
   const email = document.getElementById('login-email').value.trim();
   const pw = document.getElementById('login-password').value;
@@ -2024,16 +2045,16 @@ function renderMobileHistory() {
   if (!el) return;
   const myVehs = myMobileVehicles();
   const myVehIds = myVehs.map(v=>v.id);
+  const isAdminMobile = isAdminOrSoc();
 
-  // Entretiens préventifs des véhicules de l'utilisateur
-  // Les anciens entretiens sans champ 'categorie' sont traités comme préventifs par défaut
+  // Admin : tous les entretiens / Utilisateur standard : préventifs uniquement
   const myMaints = allMaint.filter(m =>
     myVehIds.includes(m.vehiculeId) &&
-    m.categorie !== 'curatif'
+    (isAdminMobile || m.categorie !== 'curatif')
   ).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
-  if (myMaints.length === 0 && allHistory.filter(h=>h.vehiculeId && myVehIds.includes(h.vehiculeId)).length === 0) {
-    el.innerHTML = `<div class="m-empty"><div class="m-empty-icon">📋</div>Aucun historique pour le moment.</div>`;
+  if (myMaints.length === 0) {
+    el.innerHTML = `<div class="m-empty"><div class="m-empty-icon">🔧</div>${isAdminMobile ? 'Aucun entretien enregistré.' : 'Aucun entretien préventif enregistré.'}</div>`;
     return;
   }
 
@@ -2043,12 +2064,15 @@ function renderMobileHistory() {
     const vMaints = myMaints.filter(m=>m.vehiculeId===v.id);
     if (vMaints.length === 0) return;
     const totalCout = vMaints.reduce((s,m)=>s+(m.cout||0),0);
+    const nbLabel = isAdminMobile
+      ? `${vMaints.length} entretien(s)`
+      : `${vMaints.length} entretien(s) préventif(s)`;
     html += `
       <div style="background:#fff;border-radius:12px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
         <div style="background:var(--blue-lt);padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
           <div>
             <div style="font-size:14px;font-weight:700;color:var(--blue)">${v.marque||''} ${v.modele||''}</div>
-            <div style="font-size:11px;color:var(--text2)">${v.immat||''} — ${vMaints.length} entretien(s) préventif(s)</div>
+            <div style="font-size:11px;color:var(--text2)">${v.immat||''} — ${nbLabel}</div>
           </div>
           <div style="text-align:right">
             <div style="font-size:13px;font-weight:700;color:var(--blue)">${fmt(totalCout)} FCFA</div>
@@ -2057,9 +2081,9 @@ function renderMobileHistory() {
         </div>
         ${vMaints.map(m=>`
           <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start">
-            <div style="width:32px;height:32px;border-radius:8px;background:var(--green-lt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🔧</div>
+            <div style="width:32px;height:32px;border-radius:8px;background:${m.categorie==='curatif'?'var(--orange-lt)':'var(--green-lt)'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${m.categorie==='curatif'?'🚨':'🔧'}</div>
             <div style="flex:1">
-              <div style="font-size:13px;font-weight:600">${m.type||'—'}</div>
+              <div style="font-size:13px;font-weight:600">${m.type||'—'} <span style="font-size:10px;padding:1px 5px;border-radius:6px;background:${m.categorie==='curatif'?'var(--orange-lt)':'var(--green-lt)'};color:${m.categorie==='curatif'?'var(--orange)':'var(--green)'}">${m.categorie==='curatif'?'CURATIF':'PRÉVENTIF'}</span></div>
               <div style="font-size:11px;color:var(--text2);margin-top:2px">${m.date||'—'} · ${fmt(m.km)} km</div>
               ${m.presta?`<div style="font-size:11px;color:var(--text2)">Prestataire : ${m.presta}</div>`:''}
               ${m.pieces?`<div style="font-size:11px;color:var(--text2)">Pièces : ${m.pieces}</div>`:''}
@@ -2069,7 +2093,7 @@ function renderMobileHistory() {
       </div>`;
   });
 
-  el.innerHTML = html || `<div class="m-empty"><div class="m-empty-icon">🔧</div>Aucun entretien préventif enregistré.</div>`;
+  el.innerHTML = html || `<div class="m-empty"><div class="m-empty-icon">🔧</div>Aucun entretien enregistré.</div>`;
 }
 
 window.openMKmSheet = function(id) {

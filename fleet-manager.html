@@ -1060,7 +1060,12 @@ function renderVehicles() {
         <td style="font-family:monospace">${v.immat||'—'}</td>
         <td>${soc?soc.nom:'—'}</td>
         <td>${v.owner||'—'}</td>
-        <td>${fmt(v.km)} km</td>
+        <td>
+          <div style="font-weight:500">${fmt(v.km)} km</div>
+          <div style="font-size:10px;color:${v.lastKmDate?'var(--text2)':'var(--red)'}">
+            ${v.lastKmDate ? '📅 '+fmtDate(v.lastKmDate) : '⚠️ Jamais mis à jour'}
+          </div>
+        </td>
         <td style="min-width:110px"><div style="display:flex;align-items:center;gap:6px"><div class="prog-bar"><div class="prog-fill ${kmS}" style="width:${Math.min(pct,100)}%"></div></div><span style="font-size:11px">${pct}%</span></div></td>
         <td><span class="badge ${insS}">${docStatusLabel(insS)}</span><div style="font-size:10px;color:var(--text2);margin-top:2px">${v.insExp||'—'}</div></td>
         <td><span class="badge ${vtS}">${docStatusLabel(vtS)}</span><div style="font-size:10px;color:var(--text2);margin-top:2px">${v.vtExp||'—'}</div></td>
@@ -1180,7 +1185,7 @@ window.saveKmCorrection = async function() {
   if (!confirm(`Confirmer la correction : ${fmt(kmModalVeh.km)} km → ${fmt(val)} km ?\nMotif : ${motif}`)) return;
   const oldKm = kmModalVeh.km;
   try {
-    await updateDoc(doc(db,'vehicules',kmModalVeh.id), { km: val });
+    await updateDoc(doc(db,'vehicules',kmModalVeh.id), { km: val, lastKmDate: serverTimestamp() });
     await addDoc(collection(db,'historique'), {
       vehiculeId: kmModalVeh.id,
       type: 'correction_km',
@@ -1214,7 +1219,7 @@ window.saveKm = async function() {
   const oldKm = kmModalVeh.km;
   // Étape 1 : mise à jour du kilométrage
   try {
-    await updateDoc(doc(db,'vehicules',kmModalVeh.id), { km: val });
+    await updateDoc(doc(db,'vehicules',kmModalVeh.id), { km: val, lastKmDate: serverTimestamp() });
   } catch(e) {
     toast('❌ Erreur vehicules : '+e.message); return;
   }
@@ -2003,7 +2008,7 @@ function renderMobileVehicles() {
         </div>
       </div>
       <div class="m-info-grid">
-        <div class="m-info-box"><div class="m-info-label">Kilométrage actuel</div><div class="m-info-value">${fmt(v.km)} km</div></div>
+        <div class="m-info-box"><div class="m-info-label">Kilométrage actuel</div><div class="m-info-value">${fmt(v.km)} km</div><div style="font-size:10px;color:${v.lastKmDate?'var(--text2)':'var(--red)'}">📅 ${v.lastKmDate ? fmtDate(v.lastKmDate) : 'Jamais mis à jour'}</div></div>
         <div class="m-info-box"><div class="m-info-label">Km avant échéance</div><div class="m-info-value" style="color:${remaining===0?'var(--red)':'var(--text)'}">${remaining===0?'Dépassé':fmt(remaining)+' km'}</div></div>
       </div>
       <div class="m-prog-wrap">
@@ -2123,7 +2128,7 @@ window.saveMKm = async function() {
   }
   try {
     const oldKm = mKmVeh.km;
-    await updateDoc(doc(db,'vehicules',mKmVeh.id), { km: val });
+    await updateDoc(doc(db,'vehicules',mKmVeh.id), { km: val, lastKmDate: serverTimestamp() });
     await addDoc(collection(db,'historique'), {
       vehiculeId: mKmVeh.id, type:'km', oldKm, newKm: val,
       auteur: (currentUserData.prenom+' '+currentUserData.nom).trim(),

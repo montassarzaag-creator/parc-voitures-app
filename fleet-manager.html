@@ -1227,6 +1227,7 @@ window.saveKm = async function() {
   try {
     await addDoc(collection(db,'historique'), {
       vehiculeId: kmModalVeh.id, type:'km', oldKm, newKm: val,
+      detail: `Mise à jour km — ${kmModalVeh.immat||''} : ${fmt(oldKm)} → ${fmt(val)} km`,
       auteur: (currentUserData.prenom+' '+currentUserData.nom).trim(),
       timestamp: serverTimestamp()
     });
@@ -1683,7 +1684,7 @@ function renderHistory() {
           h.type==='correction_km'
             ? `Correction index : ${fmt(h.oldKm)} → ${fmt(h.newKm)} km — Motif : ${h.motif||'?'}${h.obs?' ('+h.obs+')':''}`
             : h.type==='km'
-            ? `Mise à jour kilométrage : ${fmt(h.oldKm)} → ${fmt(h.newKm)} km`
+            ? (h.detail || `Mise à jour kilométrage : ${fmt(h.oldKm)} → ${fmt(h.newKm)} km`)
             : h.detail||h.type||'Action'
         }</span>
         <div class="hist-date">${fmtDate(h.timestamp)} — ${h.auteur||'Système'}</div>
@@ -2131,6 +2132,7 @@ window.saveMKm = async function() {
     await updateDoc(doc(db,'vehicules',mKmVeh.id), { km: val, lastKmDate: serverTimestamp() });
     await addDoc(collection(db,'historique'), {
       vehiculeId: mKmVeh.id, type:'km', oldKm, newKm: val,
+      detail: `Mise à jour km — ${mKmVeh.immat||''} : ${fmt(oldKm)} → ${fmt(val)} km`,
       auteur: (currentUserData.prenom+' '+currentUserData.nom).trim(),
       timestamp: serverTimestamp()
     });

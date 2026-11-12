@@ -511,7 +511,9 @@ tr:hover td{background:var(--surface)}
       <div id="maint-type-hint" style="grid-column:1/-1;font-size:12px;padding:6px 8px;border-radius:6px;background:var(--green-lt);color:var(--green)">🔧 Préventif — le compteur d'entretien sera remis à jour</div>
       <div class="form-group"><label>Kilométrage *</label><input type="number" id="maint-km" placeholder="Km au moment de l'entretien" inputmode="numeric" min="0"></div>
       <div class="form-group"><label>Prestataire</label><input type="text" id="maint-presta" placeholder="Garage Central"></div>
-      <div class="form-group"><label>Coût (FCFA)</label><input type="number" id="maint-cout" placeholder="150000"></div>
+      <div class="form-group"><label>Coût</label><input type="number" id="maint-cout" placeholder="150000"></div>
+      <div class="form-group"><label>Devise</label><select id="maint-devise"><option>FCFA</option><option>TND</option><option>EUR</option><option>USD</option><option>MAD</option><option>DZD</option><option>LYD</option><option>GNF</option></select></div>
+      <div id="maint-share-wrap" style="display:none;grid-column:1/-1;padding:10px 12px;border-radius:8px;background:var(--orange-lt);border-left:3px solid var(--orange)"><label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:13px;color:var(--text)"><input type="checkbox" id="maint-partage" style="margin-top:3px"><span><strong>Partager avec l'utilisateur du véhicule</strong><br><span style="font-size:11px;color:var(--text2)">Si coché, cette intervention curative sera visible dans l'onglet Entretiens du téléphone de l'utilisateur. Sinon, elle reste visible uniquement par les administrateurs.</span></span></label></div>
       <div class="form-group full"><label>Pièces remplacées</label><textarea id="maint-pieces" style="width:100%;min-height:60px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px" placeholder="Filtre à huile, huile 5L…"></textarea></div>
       <div class="form-group full"><label>Observations</label><textarea id="maint-obs" style="width:100%;min-height:60px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px"></textarea></div>
     </div>
@@ -621,7 +623,7 @@ tr:hover td{background:var(--surface)}
     <input type="hidden" id="maint-edit-id">
     <div class="form-grid">
       <div class="form-group"><label>Type d'entretien</label>
-        <select id="maint-edit-type">
+        <select id="maint-edit-type" onchange="onMaintEditTypeChange()">
           <optgroup label="🔧 Entretien PRÉVENTIF">
             <option value="Vidange moteur|preventif">Vidange moteur</option>
             <option value="Remplacement filtres|preventif">Remplacement filtres</option>
@@ -644,7 +646,9 @@ tr:hover td{background:var(--surface)}
       <div class="form-group"><label>Date</label><input type="date" id="maint-edit-date"></div>
       <div class="form-group"><label>Kilométrage</label><input type="number" id="maint-edit-km"></div>
       <div class="form-group"><label>Prestataire</label><input type="text" id="maint-edit-presta"></div>
-      <div class="form-group"><label>Coût (FCFA)</label><input type="number" id="maint-edit-cout"></div>
+      <div class="form-group"><label>Coût</label><input type="number" id="maint-edit-cout"></div>
+      <div class="form-group"><label>Devise</label><select id="maint-edit-devise"><option>FCFA</option><option>TND</option><option>EUR</option><option>USD</option><option>MAD</option><option>DZD</option><option>LYD</option><option>GNF</option></select></div>
+      <div id="maint-edit-share-wrap" style="display:none;grid-column:1/-1;padding:10px 12px;border-radius:8px;background:var(--orange-lt);border-left:3px solid var(--orange)"><label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:13px;color:var(--text)"><input type="checkbox" id="maint-edit-partage" style="margin-top:3px"><span><strong>Partager avec l'utilisateur du véhicule</strong><br><span style="font-size:11px;color:var(--text2)">Si coché, cette intervention curative sera visible dans l'onglet Entretiens du téléphone de l'utilisateur. Sinon, elle reste visible uniquement par les administrateurs.</span></span></label></div>
       <div class="form-group full"><label>Pièces remplacées</label><textarea id="maint-edit-pieces" style="width:100%;min-height:60px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px"></textarea></div>
       <div class="form-group full"><label>Observations</label><textarea id="maint-edit-obs" style="width:100%;min-height:60px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px"></textarea></div>
     </div>
@@ -721,6 +725,14 @@ function toast(msg, dur=3000) {
   setTimeout(() => t.classList.remove('show'), dur);
 }
 function fmt(n) { return n ? Number(n).toLocaleString('fr-FR') : '—'; }
+function fmtMoney(amount, devise) { return fmt(amount) + ' ' + (devise || 'FCFA'); }
+// Totaux par devise : jamais d'addition entre devises différentes
+function fmtTotals(items) {
+  const t = {};
+  items.forEach(m => { if (m.cout) { const d = m.devise || 'FCFA'; t[d] = (t[d] || 0) + m.cout; } });
+  const parts = Object.entries(t).map(([d, v]) => fmt(v) + ' ' + d);
+  return parts.length ? parts.join(' + ') : '0 FCFA';
+}
 function fmtDate(ts) {
   if (!ts) return '—';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
@@ -1131,21 +1143,19 @@ window.openMaintForVehicle = function(vehId) {
       mv.innerHTML = allVehicles.map(v=>`<option value="${v.id}" ${v.id===vehId?'selected':''}>${v.marque||''} ${v.modele||''} — ${v.immat||''}</option>`).join('');
       // Pré-remplir le kilométrage avec la valeur actuelle du véhicule
       const veh = allVehicles.find(x=>x.id===vehId);
-      if (veh) {
-        document.getElementById('maint-km').value = veh.km || '';
-        document.getElementById('maint-date').value = new Date().toISOString().split('T')[0];
-      }
+      resetMaintForm();
+      if (veh) document.getElementById('maint-km').value = veh.km || '';
     }
     openModal('modal-add-maint', true);
   }, 50);
 };
 
 // Mettre à jour le km quand l'utilisateur change le véhicule dans le formulaire
-function onMaintVehChange() {
+window.onMaintVehChange = function() {
   const vehId = document.getElementById('maint-veh').value;
   const veh = allVehicles.find(x=>x.id===vehId);
   if (veh) document.getElementById('maint-km').value = veh.km || '';
-}
+};
 
 window.onMaintTypeChange = function() {
   const val = document.getElementById('maint-type').value;
@@ -1156,7 +1166,48 @@ window.onMaintTypeChange = function() {
       ? '🔧 Préventif — le compteur d\'entretien sera remis à jour'
       : '🚨 Curatif — le compteur d\'entretien ne sera PAS modifié';
     hint.style.color = isPreventif ? 'var(--green)' : 'var(--orange)';
+    hint.style.background = isPreventif ? 'var(--green-lt)' : 'var(--orange-lt)';
   }
+  const wrap = document.getElementById('maint-share-wrap');
+  if (wrap) wrap.style.display = isPreventif ? 'none' : 'block';
+  if (isPreventif) document.getElementById('maint-partage').checked = false;
+};
+
+window.onMaintEditTypeChange = function() {
+  const val = document.getElementById('maint-edit-type').value;
+  const isCuratif = val.includes('|curatif');
+  document.getElementById('maint-edit-share-wrap').style.display = isCuratif ? 'block' : 'none';
+  if (!isCuratif) document.getElementById('maint-edit-partage').checked = false;
+};
+
+function resetMaintForm() {
+  document.getElementById('maint-type').value = 'Vidange moteur|preventif';
+  document.getElementById('maint-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('maint-presta').value = '';
+  document.getElementById('maint-cout').value = '';
+  document.getElementById('maint-pieces').value = '';
+  document.getElementById('maint-obs').value = '';
+  let d = 'FCFA';
+  try { d = localStorage.getItem('fm_devise') || 'FCFA'; } catch(e) {}
+  document.getElementById('maint-devise').value = d;
+  document.getElementById('maint-partage').checked = false;
+  onMaintTypeChange();
+}
+
+window.toggleSharePartage = async function(id) {
+  const m = allMaint.find(x=>x.id===id);
+  if (!m) return;
+  const next = !m.partage;
+  try {
+    await updateDoc(doc(db,'entretiens',id), { partage: next });
+    await addDoc(collection(db,'historique'), {
+      type:'modif_entretien', vehiculeId:m.vehiculeId,
+      auteur:(currentUserData.prenom+' '+currentUserData.nom).trim(),
+      detail:(next ? 'Partage activé' : 'Partage désactivé')+' — '+(m.type||'')+' ('+(m.vehicule||'')+')',
+      timestamp:serverTimestamp()
+    });
+    toast(next ? '✅ Intervention partagée avec l\'utilisateur' : '✅ Intervention non partagée');
+  } catch(e) { toast('❌ '+e.message); }
 };
 
 window.openKmCorrection = function(id) {
@@ -1385,7 +1436,7 @@ function renderMaint() {
           <div style="font-size:12px;color:var(--text2)">${group.items.length} entretien(s)</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:15px;font-weight:700;color:var(--blue)">${fmt(totalCout)} FCFA</div>
+          <div style="font-size:15px;font-weight:700;color:var(--blue)">${fmtTotals(group.items)}</div>
           <div style="font-size:10px;color:var(--text2)">Total dépensé</div>
         </div>
         <button class="btn sm" onclick="event.stopPropagation();printMaint('${vehId}')" title="Imprimer les entretiens" style="flex-shrink:0">🖨️</button>
@@ -1411,13 +1462,15 @@ function renderMaint() {
                 <span style="font-size:10px;padding:2px 6px;border-radius:8px;margin-left:4px;font-weight:500;background:${m.categorie==='curatif'?'var(--orange-lt)':'var(--green-lt)'};color:${m.categorie==='curatif'?'var(--orange)':'var(--green)'}">
                   ${m.categorie==='curatif'?'CURATIF':'PRÉVENTIF'}
                 </span>
+                ${m.categorie==='curatif' && m.partage ? '<span style="font-size:10px;padding:2px 6px;border-radius:8px;margin-left:4px;font-weight:500;background:var(--blue-lt);color:var(--blue)">PARTAGÉ</span>' : ''}
               </td>
               <td style="padding:10px">${m.date||'—'}</td>
               <td style="padding:10px">${fmt(m.km)} km</td>
               <td style="padding:10px">${m.presta||'—'}</td>
-              <td style="padding:10px">${m.cout?fmt(m.cout)+' FCFA':'—'}</td>
+              <td style="padding:10px">${m.cout?fmtMoney(m.cout, m.devise):'—'}</td>
               <td style="padding:10px;font-size:12px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.pieces||''}">${m.pieces||'—'}</td>
               <td style="padding:10px;white-space:nowrap;display:flex;gap:4px">
+                ${isAdminOrSoc() && m.categorie==='curatif' ? `<button class="btn sm" onclick="toggleSharePartage('${m.id}')" title="${m.partage?'Ne plus partager avec l\'utilisateur':'Partager avec l\'utilisateur'}" style="${m.partage?'background:var(--blue-lt);color:var(--blue);border-color:var(--blue)':''}">${m.partage?'👁 Partagé':'🔒 Privé'}</button>` : ''}
                 ${isAdminOrSoc()?`<button class="btn sm" onclick="openEditMaint('${m.id}')">✏️</button>`:''}
                 ${isAdmin()?`<button class="btn sm danger" onclick="deleteMaint('${m.id}')">🗑</button>`:''}
               </td>
@@ -1456,7 +1509,7 @@ window.printMaint = function(vehId) {
     <div style="font-size:13px;font-weight:700;color:${couleur};margin:16px 0 6px;padding:6px 10px;background:${couleur}18;border-left:3px solid ${couleur};border-radius:0 4px 4px 0">${titre} — ${items.length} intervention(s)</div>
     <table>
       <thead><tr>
-        <th>Type</th><th>Date</th><th>Kilométrage</th><th>Prestataire</th><th>Coût (FCFA)</th><th>Pièces / Observations</th>
+        <th>Type</th><th>Date</th><th>Kilométrage</th><th>Prestataire</th><th>Coût</th><th>Pièces / Observations</th>
       </tr></thead>
       <tbody>
         ${items.map(m=>`<tr>
@@ -1464,12 +1517,12 @@ window.printMaint = function(vehId) {
           <td>${m.date||'—'}</td>
           <td>${fmt(m.km)} km</td>
           <td>${m.presta||'—'}</td>
-          <td style="text-align:right;font-weight:500">${m.cout?fmt(m.cout):'—'}</td>
+          <td style="text-align:right;font-weight:500">${m.cout?fmtMoney(m.cout, m.devise):'—'}</td>
           <td><div class="pieces">${m.pieces||''}</div>${m.obs?`<div class="obs">${m.obs}</div>`:''}</td>
         </tr>`).join('')}
         <tr style="font-weight:700;background:${couleur}18">
           <td colspan="4" style="text-align:right">Sous-total ${titre.split(' ')[0]}</td>
-          <td style="text-align:right;color:${couleur};font-size:13px">${fmt(items.reduce((s,m)=>s+(m.cout||0),0))}</td>
+          <td style="text-align:right;color:${couleur};font-size:13px">${fmtTotals(items)}</td>
           <td></td>
         </tr>
       </tbody>
@@ -1518,17 +1571,17 @@ window.printMaint = function(vehId) {
     <div class="totaux">
       <div class="total-box" style="background:#EAF3DE;border:1px solid #3B6D11">
         <div class="total-label">🔧 Entretiens préventifs</div>
-        <div class="total-val" style="color:#3B6D11">${fmt(totalPreventif)} FCFA</div>
+        <div class="total-val" style="color:#3B6D11">${fmtTotals(preventifs)}</div>
         <div class="total-label">${preventifs.length} intervention(s)</div>
       </div>
       <div class="total-box" style="background:#FAEEDA;border:1px solid #854F0B">
         <div class="total-label">🚨 Interventions curatives</div>
-        <div class="total-val" style="color:#854F0B">${fmt(totalCuratif)} FCFA</div>
+        <div class="total-val" style="color:#854F0B">${fmtTotals(curatifs)}</div>
         <div class="total-label">${curatifs.length} intervention(s)</div>
       </div>
       <div class="total-box" style="background:#E6F1FB;border:1px solid #185FA5">
         <div class="total-label">💰 Total général</div>
-        <div class="total-val" style="color:#185FA5">${fmt(totalCout)} FCFA</div>
+        <div class="total-val" style="color:#185FA5">${fmtTotals(maints)}</div>
         <div class="total-label">${maints.length} intervention(s)</div>
       </div>
     </div>
@@ -1562,12 +1615,15 @@ window.saveMaint = async function() {
     km,
     presta: document.getElementById('maint-presta').value.trim(),
     cout: parseInt(document.getElementById('maint-cout').value)||0,
+    devise: document.getElementById('maint-devise').value || 'FCFA',
+    partage: categorie === 'curatif' && document.getElementById('maint-partage').checked,
     pieces: document.getElementById('maint-pieces').value.trim(),
     obs: document.getElementById('maint-obs').value.trim(),
     auteur: currentUserData.prenom+' '+currentUserData.nom,
     createdAt: serverTimestamp()
   };
   if (!vehId || !data.date || !km) { toast('❌ Véhicule, date et kilométrage requis'); return; }
+  try { localStorage.setItem('fm_devise', data.devise); } catch(e) {}
   try {
     await addDoc(collection(db,'entretiens'), data);
     // Mettre à jour lastKm UNIQUEMENT pour un entretien préventif
@@ -1588,7 +1644,19 @@ window.openEditMaint = function(id) {
   const m = allMaint.find(x=>x.id===id);
   if (!m) return;
   document.getElementById('maint-edit-id').value = id;
-  document.getElementById('maint-edit-type').value = m.type||'';
+  const sel = document.getElementById('maint-edit-type');
+  sel.querySelectorAll('option[data-tmp]').forEach(o => o.remove());
+  const tv = (m.type||'')+'|'+(m.categorie||'preventif');
+  sel.value = tv;
+  if (sel.value !== tv) {
+    const o = document.createElement('option');
+    o.value = tv; o.textContent = (m.type||'—')+' (ancien)'; o.dataset.tmp = '1';
+    sel.insertBefore(o, sel.firstChild); sel.value = tv;
+  }
+  document.getElementById('maint-edit-devise').value = m.devise || 'FCFA';
+  document.getElementById('maint-edit-partage').checked = !!m.partage;
+  onMaintEditTypeChange();
+  document.getElementById('maint-edit-partage').checked = !!m.partage && (m.categorie==='curatif');
   document.getElementById('maint-edit-date').value = m.date||'';
   document.getElementById('maint-edit-km').value = m.km||'';
   document.getElementById('maint-edit-presta').value = m.presta||'';
@@ -1600,8 +1668,13 @@ window.openEditMaint = function(id) {
 
 window.updateMaint = async function() {
   const id = document.getElementById('maint-edit-id').value;
+  const tv = document.getElementById('maint-edit-type').value;
+  const [typeLabel, categorie] = tv.includes('|') ? tv.split('|') : [tv, 'preventif'];
   const data = {
-    type: document.getElementById('maint-edit-type').value,
+    type: typeLabel,
+    categorie,
+    devise: document.getElementById('maint-edit-devise').value || 'FCFA',
+    partage: categorie === 'curatif' && document.getElementById('maint-edit-partage').checked,
     date: document.getElementById('maint-edit-date').value,
     km: parseInt(document.getElementById('maint-edit-km').value)||0,
     presta: document.getElementById('maint-edit-presta').value.trim(),
@@ -1907,13 +1980,7 @@ window.openModal = function(id, skipReset) {
       const firstVeh = allVehicles[0];
       if (firstVeh) document.getElementById('maint-km').value = firstVeh.km || '';
     }
-    // Reset complet de tous les champs
-    document.getElementById('maint-type').value = 'Vidange moteur';
-    document.getElementById('maint-date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('maint-presta').value = '';
-    document.getElementById('maint-cout').value = '';
-    document.getElementById('maint-pieces').value = '';
-    document.getElementById('maint-obs').value = '';
+    resetMaintForm();
   }
   if (id==='modal-add-societe') {
     document.getElementById('soc-modal-title').textContent = 'Ajouter une société';
@@ -2056,11 +2123,11 @@ function renderMobileHistory() {
   // Admin : tous les entretiens / Utilisateur standard : préventifs uniquement
   const myMaints = allMaint.filter(m =>
     myVehIds.includes(m.vehiculeId) &&
-    (isAdminMobile || m.categorie !== 'curatif')
+    (isAdminMobile || m.categorie !== 'curatif' || m.partage)
   ).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 
   if (myMaints.length === 0) {
-    el.innerHTML = `<div class="m-empty"><div class="m-empty-icon">🔧</div>${isAdminMobile ? 'Aucun entretien enregistré.' : 'Aucun entretien préventif enregistré.'}</div>`;
+    el.innerHTML = `<div class="m-empty"><div class="m-empty-icon">🔧</div>${'Aucun entretien enregistré.'}</div>`;
     return;
   }
 
@@ -2072,7 +2139,7 @@ function renderMobileHistory() {
     const totalCout = vMaints.reduce((s,m)=>s+(m.cout||0),0);
     const nbLabel = isAdminMobile
       ? `${vMaints.length} entretien(s)`
-      : `${vMaints.length} entretien(s) préventif(s)`;
+      : `${vMaints.length} intervention(s)`;
     html += `
       <div style="background:#fff;border-radius:12px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
         <div style="background:var(--blue-lt);padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
@@ -2081,7 +2148,7 @@ function renderMobileHistory() {
             <div style="font-size:11px;color:var(--text2)">${v.immat||''} — ${nbLabel}</div>
           </div>
           <div style="text-align:right">
-            <div style="font-size:13px;font-weight:700;color:var(--blue)">${fmt(totalCout)} FCFA</div>
+            <div style="font-size:13px;font-weight:700;color:var(--blue)">${fmtTotals(vMaints)}</div>
             <div style="font-size:10px;color:var(--text2)">Total</div>
           </div>
         </div>
@@ -2094,7 +2161,7 @@ function renderMobileHistory() {
               ${m.presta?`<div style="font-size:11px;color:var(--text2)">Prestataire : ${m.presta}</div>`:''}
               ${m.pieces?`<div style="font-size:11px;color:var(--text2)">Pièces : ${m.pieces}</div>`:''}
             </div>
-            <div style="font-size:12px;font-weight:600;color:var(--green);flex-shrink:0">${m.cout?fmt(m.cout)+' FCFA':''}</div>
+            <div style="font-size:12px;font-weight:600;color:var(--green);flex-shrink:0">${m.cout?fmtMoney(m.cout, m.devise):''}</div>
           </div>`).join('')}
       </div>`;
   });
